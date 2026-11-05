@@ -3,6 +3,7 @@ import { basename, join, relative, sep } from 'node:path';
 import {
   classifyFile,
   consumePendingRestore,
+  contentHash,
   errorMessage,
   excerpt,
   missingReasonText,
@@ -299,8 +300,9 @@ export class PromptActions implements vscode.Disposable {
     const answer = await vscode.window.showWarningMessage(`Move ${describe(prompt)} into this repository?`, { modal: true, detail }, confirm);
     if (answer !== confirm) return false;
     const moved = await moveToRepo(this.#service.catalog.global, store, prompt.id, repo.root, plan.hash);
-    // The user just reviewed this version, so it does not need confirming again.
-    await this.#service.catalog.trust.confirm(plan.hash, prompt.id);
+    // The user just reviewed this, so it does not need confirming again. Hashed again
+    // because in the repo store the hash also covers the files it refers to.
+    await this.#service.catalog.trust.confirm(await contentHash(moved), prompt.id);
     this.#service.fire();
     const open = 'Open Prompt File';
     const shown = relative(repo.root, repoStoreRoot(repo.root)).split(sep).join('/');

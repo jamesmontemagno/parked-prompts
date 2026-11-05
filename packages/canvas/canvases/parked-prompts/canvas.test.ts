@@ -81,6 +81,31 @@ describe('the composer', () => {
     }
   })
 
+  it('leaves no draft behind when an attachment fails', async () => {
+    const { uploadId } = await invoke<{ uploadId: string }>('begin_upload', { size: 1 })
+    await invoke('upload_chunk', { uploadId, data: Buffer.from('x').toString('base64') })
+    await expect(invoke('finish_upload', { uploadId, name: 'a.txt', size: 2 })).rejects.toThrow(/did not finish/)
+    expect((await t.catalog.global.list()).prompts).toEqual([])
+  })
+
+  it('attaches an empty file', async () => {
+    const { id } = await upload(Buffer.alloc(0), 'empty.txt')
+    expect((await t.catalog.global.get(id)).attachments[0]).toMatchObject({ name: 'empty.txt', size: 0 })
+  })
+
+  it('keeps a draft it did not create when an attachment fails', async () => {
+    const prompt = await t.park('Already here')
+    const { uploadId } = await invoke<{ uploadId: string }>('begin_upload', { size: 2 })
+    await expect(invoke('finish_upload', { uploadId, id: prompt.id, name: 'a.txt', size: 2 })).rejects.toThrow(/did not finish/)
+    expect((await t.catalog.global.get(prompt.id)).body).toBe('Already here')
+  })
+
+  it('says when the draft being saved is gone, so the page can keep the text', async () => {
+    const prompt = await t.park('Deleted soon')
+    await t.catalog.global.delete(prompt.id)
+    await expect(invoke('save_prompt', { id: prompt.id, title: '', body: 'New text' })).rejects.toMatchObject({ code: 'not_found' })
+  })
+
   it('removes an attachment', async () => {
     const { id } = await upload(Buffer.from('x'), 'a.txt')
     await invoke('remove_attachment', { id, path: 'attachments/a.txt' })
@@ -146,7 +171,16 @@ describe('moving to the repository', () => {
     const moved = await t.catalog.repoStore?.get(prompt.id)
     expect(moved?.repo).toEqual({ remote: 'github.com/o/r' })
     expect(t.state().prompts[0]).toMatchObject({ store: 'repo', needsConfirmation: false })
+    expect(t.state().prompts[0]?.needsConfirmation).toBe(false)
     await expect(t.catalog.global.get(prompt.id)).rejects.toMatchObject({ code: 'not_found' })
+  })
+
+  it('does not ask you to confirm your own prompt, even when it refers to a file', async () => {
+    const prompt = await t.park('Share this')
+    await t.catalog.global.addWorkspaceFile(prompt.id, 'src/a.ts')
+    const plan = await invoke<{ hash: string }>('plan_move', { store: 'global', id: prompt.id })
+    await invoke('move_to_repo', { id: prompt.id, hash: plan.hash })
+    expect(t.state().prompts[0]).toMatchObject({ store: 'repo', needsConfirmation: false })
   })
 
   it('refuses when the prompt changed after the plan', async () => {

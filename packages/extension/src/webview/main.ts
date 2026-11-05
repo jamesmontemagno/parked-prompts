@@ -22,7 +22,7 @@ window.addEventListener('message', (event: MessageEvent<ToWebview>) => {
       settleRequest(message);
       break;
     case 'load':
-      composer.load(message.prompt);
+      void composer.load(message.prompt);
       break;
     case 'newPrompt':
       void composer.newPrompt();

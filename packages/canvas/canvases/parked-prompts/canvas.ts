@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto'
-import { appendFile, mkdir, readdir, rm, stat } from 'node:fs/promises'
+import { appendFile, mkdir, readdir, rm, stat, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import {
   contentHash,
@@ -8,6 +8,7 @@ import {
   isImageFile,
   moveToRepo,
   normalizeRelativePath,
+  ParkedPromptsError,
   parseFileReference,
   planMoveToRepo,
   PromptStore,
@@ -57,12 +58,18 @@ async function deliver(ctx: SendContext, prompt: ParkedPrompt, mode: Delivery['m
   const repo = ctx.state.repo
   const resolution = await attachmentsOf(prompt, repo)
   await ctx.sendToAgent(buildDelivery(prompt, resolution, mode) as AgentMessage)
-  await catalogFor(repo).storeFor(prompt.store).update(prompt.id, { status: 'done' })
+  // It has gone now, so nothing past here may throw: that would roll this back, leave
+  // it armed, and send it a second time.
   ctx.setState(s => ({ ...s, lastSentAt: now, armed: s.armed.filter(item => !(item.id === prompt.id && item.store === prompt.store)) }))
+  try {
+    await catalogFor(repo).storeFor(prompt.store).update(prompt.id, { status: 'done' })
+  } catch (error) {
+    addNotice(ctx, `Sent "${prompt.title}", but could not mark it done: ${errorMessage(error)}`)
+  }
   if (resolution.missing.length > 0) {
     addNotice(ctx, `Sent "${prompt.title}" without ${resolution.missing.map(item => item.name).join(', ')}.`)
   }
-  await syncFromStore(ctx)
+  await syncFromStore(ctx).catch(() => undefined)
 }
 
 const uploadPath = (dataDir: string, id: string) => {
@@ -81,9 +88,28 @@ async function sweepUploads(dataDir: string, now: number): Promise<void> {
 
 async function ensureDraft(ctx: StateContext, id: string | undefined): Promise<ParkedPrompt> {
   const catalog = catalogFor(ctx.state.repo)
-  if (id) return catalog.global.get(id)
+  if (id) {
+    try {
+      return await catalog.global.get(id)
+    } catch (error) {
+      // The page uses this code to keep the text and start a new draft.
+      if (error instanceof ParkedPromptsError && error.code === 'not_found') throw new CanvasKitError('not_found', error.message)
+      throw error
+    }
+  }
   const repo = ctx.state.repo
   return catalog.global.create({ status: 'draft', ...(repo && { repo: { ...(repo.remote && { remote: repo.remote }), path: repo.root } }) })
+}
+
+/** A draft this request created goes away if the attach fails, or the next save would make a second one. */
+async function attachToDraft(ctx: StateContext, id: string | undefined, attach: (draft: ParkedPrompt) => Promise<ParkedPrompt>): Promise<ParkedPrompt> {
+  const draft = await ensureDraft(ctx, id)
+  try {
+    return await attach(draft)
+  } catch (error) {
+    if (!id) await catalogFor(ctx.state.repo).global.delete(draft.id).catch(() => undefined)
+    throw error
+  }
 }
 
 export default defineCanvas({
@@ -200,6 +226,8 @@ export default defineCanvas({
       input: promptRef.extend({ status: z.enum(['parked', 'done']) }),
       run: async (ctx, { store, id, status }) => {
         await catalogFor(ctx.state.repo).storeFor(store).update(id, { status })
+        // Done means done: it must not still go out when the agent next goes idle.
+        if (status === 'done') ctx.setState(s => ({ ...s, armed: s.armed.filter(item => !(item.id === id && item.store === store)) }))
         await syncFromStore(ctx)
       },
     }),
@@ -225,7 +253,10 @@ export default defineCanvas({
         if (size > maxAttachmentBytes) throw new CanvasKitError('too_large', 'That file is larger than the 25 MB limit.')
         await mkdir(join(ctx.dataDir, 'uploads'), { recursive: true })
         await sweepUploads(ctx.dataDir, ctx.now())
-        return { uploadId: randomBytes(12).toString('hex') }
+        const uploadId = randomBytes(12).toString('hex')
+        // Created now, so an empty file can be attached like any other.
+        await writeFile(uploadPath(ctx.dataDir, uploadId), '')
+        return { uploadId }
       },
     }),
     upload_chunk: action({
@@ -244,9 +275,8 @@ export default defineCanvas({
         const part = uploadPath(ctx.dataDir, uploadId)
         try {
           const info = await stat(part).catch(() => undefined)
-          if (size > 0 && info?.size !== size) throw new CanvasKitError('upload_incomplete', 'That upload did not finish. Try again.')
-          const draft = await ensureDraft(ctx, id)
-          const saved = await catalogFor(ctx.state.repo).global.addFile(draft.id, part, { name: safeFileName(name), ...(mime && { mime }) })
+          if (info?.size !== size) throw new CanvasKitError('upload_incomplete', 'That upload did not finish. Try again.')
+          const saved = await attachToDraft(ctx, id, draft => catalogFor(ctx.state.repo).global.addFile(draft.id, part, { name: safeFileName(name), ...(mime && { mime }) }))
           await syncFromStore(ctx)
           return { id: saved.id }
         } finally {
@@ -266,8 +296,7 @@ export default defineCanvas({
         } catch {
           throw new CanvasKitError('invalid_path', 'Use a path inside this repository, such as src/a.ts:10-20.')
         }
-        const draft = await ensureDraft(ctx, id)
-        const saved = await catalogFor(ctx.state.repo).global.addWorkspaceFile(draft.id, relative, range)
+        const saved = await attachToDraft(ctx, id, draft => catalogFor(ctx.state.repo).global.addWorkspaceFile(draft.id, relative, range))
         await syncFromStore(ctx)
         return { id: saved.id }
       },
@@ -365,8 +394,9 @@ export default defineCanvas({
         const repo = ctx.state.repo
         if (!repo?.isGit) throw new CanvasKitError('not_a_repo', 'Open a Git repository to move a prompt into it.')
         const catalog = catalogFor(repo)
-        await moveToRepo(catalog.global, new PromptStore(repoStoreRoot(repo.root), 'repo'), id, repo.root, hash)
-        await catalog.trust.confirm(hash, id, new Date(ctx.now()))
+        const moved = await moveToRepo(catalog.global, new PromptStore(repoStoreRoot(repo.root), 'repo'), id, repo.root, hash)
+        // In the repo store the hash also covers the files it refers to, so take it again.
+        await catalog.trust.confirm(await contentHash(moved), id, new Date(ctx.now()))
         await syncFromStore(ctx)
       },
     }),
@@ -396,6 +426,11 @@ export default defineCanvas({
         try {
           prompt = await getPrompt(ctx.state.repo, ref)
           await assertConfirmed(ctx.state.repo, prompt)
+          // It may have been marked done somewhere else since it was armed.
+          if (prompt.status === 'done') {
+            disarm(`Did not send "${next.title}": it was marked done.`)
+            return
+          }
         } catch (error) {
           disarm(`Did not send "${next.title}": ${errorMessage(error)}`)
           return

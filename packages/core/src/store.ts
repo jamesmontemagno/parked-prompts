@@ -1,6 +1,6 @@
 import { randomBytes, createHash } from 'node:crypto';
 import { lstat, mkdir, readdir, readFile, rm, stat, unlink, writeFile } from 'node:fs/promises';
-import { basename, join } from 'node:path';
+import { basename, dirname, join } from 'node:path';
 import { isImageFile, mimeFromName } from './attachments.ts';
 import { ParkedPromptsError, errorMessage, isNodeError } from './errors.ts';
 import { parsePrompt, serializePrompt } from './frontmatter.ts';
@@ -77,7 +77,21 @@ export class PromptStore {
     return join(this.root, id);
   }
 
+  /**
+   * A repository controls its own `.github` folder, so a committed symlink there could
+   * point the repo store anywhere on disk. It is refused for every read and write. The
+   * global store is the user's own, and may reasonably be a link to synced dotfiles.
+   */
+  async assertSafeRoot(): Promise<void> {
+    if (this.kind !== 'repo') return;
+    for (const path of [dirname(this.root), this.root]) {
+      const info = await lstat(path).catch(() => undefined);
+      if (info?.isSymbolicLink()) throw new ParkedPromptsError('path_escape', `${basename(path)} is a symbolic link, so prompts in this repository were not used.`);
+    }
+  }
+
   async #readEntry(id: string): Promise<ParkedPrompt> {
+    await this.assertSafeRoot();
     const dir = this.#dir(id);
     const folder = await lstat(dir).catch(() => undefined);
     if (!folder) throw new ParkedPromptsError('not_found', `There is no parked prompt with the ID ${id}.`);
@@ -101,6 +115,11 @@ export class PromptStore {
   async list(): Promise<{ prompts: ParkedPrompt[]; problems: StoreProblem[] }> {
     const prompts: ParkedPrompt[] = [];
     const problems: StoreProblem[] = [];
+    try {
+      await this.assertSafeRoot();
+    } catch (error) {
+      return { prompts, problems: [{ store: this.kind, id: basename(this.root), dir: this.root, reason: errorMessage(error) }] };
+    }
     const names = await readdir(this.root).catch(error => {
       if (isNodeError(error, 'ENOENT', 'ENOTDIR')) return [] as string[];
       throw error;
@@ -140,6 +159,7 @@ export class PromptStore {
     const dir = this.#dir(id);
     const body = input.body ?? '';
     this.#assertBodySize(body);
+    await this.assertSafeRoot();
     await this.#ensureRoot();
     const temp = join(this.root, `.tmp-${id}-${randomBytes(3).toString('hex')}`);
     const time = this.#now().toISOString();
@@ -170,7 +190,7 @@ export class PromptStore {
   async #change(id: string, apply: (prompt: ParkedPrompt) => Promise<PromptMeta | undefined> | PromptMeta | undefined, nextBody?: string): Promise<ParkedPrompt> {
     const dir = this.#dir(id);
     await this.#readEntry(id);
-    return withLock(join(dir, LOCK_FILE), async () => {
+    return this.withEntryLock(id, async () => {
       const current = await this.#readEntry(id);
       const meta = await apply(current);
       if (!meta) return current;
@@ -208,13 +228,25 @@ export class PromptStore {
     );
   }
 
+  /** Holds an entry's lock, for changes that span more than one file. */
+  withEntryLock<T>(id: string, task: () => Promise<T>): Promise<T> {
+    return withLock(join(this.#dir(id), LOCK_FILE), task, { createDirectory: false });
+  }
+
   async delete(id: string): Promise<void> {
+    await this.assertSafeRoot();
     const dir = this.#dir(id);
     const info = await lstat(dir).catch(() => undefined);
     if (!info) throw new ParkedPromptsError('not_found', `There is no parked prompt with the ID ${id}.`);
-    // Hide it first, so a reader never sees half a deleted entry.
+    // A bad entry may be a link, and a lock file must never be written through one.
+    if (info.isDirectory()) await this.withEntryLock(id, () => this.deleteWhileLocked(id));
+    else await rm(dir, { force: true });
+  }
+
+  /** Hides the entry first, so a reader never sees half of it. The caller holds its lock. */
+  async deleteWhileLocked(id: string): Promise<void> {
     const trash = join(this.root, `.trash-${id}-${randomBytes(3).toString('hex')}`);
-    await rename(dir, trash);
+    await rename(this.#dir(id), trash);
     await rm(trash, { recursive: true, force: true });
   }
 

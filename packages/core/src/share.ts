@@ -44,7 +44,6 @@ export function scanForSecrets(text: string): SecretFinding[] {
 }
 
 const MAX_SCAN_BYTES = 1024 * 1024;
-const TEXT_MIME = /^(?:text\/|application\/(?:json|xml|x-yaml|yaml|javascript))/;
 
 export interface PlannedFile {
   /** Path relative to the repository root. */
@@ -104,10 +103,14 @@ export async function planMoveToRepo(prompt: ParkedPrompt, repoRoot: string): Pr
     const image = isImageFile(item.absolutePath);
     if (image) images += 1;
     files.push({ path: `${relativeDir}/${attachment.path}`, size: attachment.size, kind: image ? 'image' : 'file' });
-    if (!image && attachment.size <= MAX_SCAN_BYTES && TEXT_MIME.test(attachment.mime)) {
-      const contents = await readFile(item.absolutePath, 'utf8').catch(() => '');
-      for (const finding of scanForSecrets(contents)) findings.push(`${attachment.name} may contain ${finding.label} (line ${finding.line}).`);
+    if (image) continue;
+    // Read by content, because a .env or .pem has no type to go by.
+    const contents = attachment.size <= MAX_SCAN_BYTES ? await readFile(item.absolutePath).catch(() => undefined) : undefined;
+    if (!contents || contents.includes(0)) {
+      warnings.push(`${attachment.name} could not be checked for secrets, so read it yourself.`);
+      continue;
     }
+    for (const finding of scanForSecrets(contents.toString('utf8'))) findings.push(`${attachment.name} may contain ${finding.label} (line ${finding.line}).`);
   }
   for (const item of missing) {
     if (item.attachment.kind === 'workspace') references.push(item.name);
@@ -127,28 +130,34 @@ export async function planMoveToRepo(prompt: ParkedPrompt, repoRoot: string): Pr
  */
 export async function moveToRepo(global: PromptStore, repoStore: PromptStore, id: string, repoRoot: string, expectedHash: string): Promise<ParkedPrompt> {
   if (repoStore.root !== repoStoreRoot(repoRoot)) throw new ParkedPromptsError('invalid_input', 'The repo store does not belong to this repository.');
-  const prompt = await global.get(id);
-  const plan = await planMoveToRepo(prompt, repoRoot);
-  if (plan.hash !== expectedHash) throw new ParkedPromptsError('changed', 'The prompt changed after you reviewed it. Review it again.');
-  if (plan.blockers.length > 0) throw new ParkedPromptsError('invalid_input', plan.blockers.join(' '));
-  const dir = join(repoStore.root, id);
-  if (await pathExists(dir)) throw new ParkedPromptsError('already_exists', `The repo store already has a prompt with the ID ${id}.`);
+  await repoStore.assertSafeRoot();
+  // The lock is held through the delete, so a change made during a long copy is not lost.
+  return global.withEntryLock(id, async () => {
+    const prompt = await global.get(id);
+    const plan = await planMoveToRepo(prompt, repoRoot);
+    if (plan.hash !== expectedHash) throw new ParkedPromptsError('changed', 'The prompt changed after you reviewed it. Review it again.');
+    if (plan.blockers.length > 0) throw new ParkedPromptsError('invalid_input', plan.blockers.join(' '));
+    const dir = join(repoStore.root, id);
+    if (await pathExists(dir)) throw new ParkedPromptsError('already_exists', `The repo store already has a prompt with the ID ${id}.`);
 
-  await mkdir(repoStore.root, { recursive: true, mode: 0o755 });
-  const temp = join(repoStore.root, `.tmp-${id}-${randomBytes(3).toString('hex')}`);
-  try {
-    await mkdir(join(temp, ATTACHMENTS_DIR), { recursive: true, mode: 0o755 });
-    const { resolved } = await resolveAttachments(prompt, undefined);
-    for (const item of resolved) {
-      const info = await lstat(item.absolutePath);
-      await copyFileWithHash(item.absolutePath, join(temp, ATTACHMENTS_DIR, basename(item.attachment.path)), Math.max(info.size, 1), 0o644);
+    await mkdir(repoStore.root, { recursive: true, mode: 0o755 });
+    const temp = join(repoStore.root, `.tmp-${id}-${randomBytes(3).toString('hex')}`);
+    try {
+      await mkdir(join(temp, ATTACHMENTS_DIR), { recursive: true, mode: 0o755 });
+      const { resolved } = await resolveAttachments(prompt, undefined);
+      for (const item of resolved) {
+        const info = await lstat(item.absolutePath);
+        await copyFileWithHash(item.absolutePath, join(temp, ATTACHMENTS_DIR, basename(item.attachment.path)), Math.max(info.size, 1), 0o644);
+      }
+      await writeFile(join(temp, PROMPT_FILE), serializePrompt(sharedMeta(prompt, prompt.attachments), prompt.body), { mode: 0o644 });
+      // The checkout could have changed during the copy.
+      await repoStore.assertSafeRoot();
+      await rename(temp, dir);
+    } catch (error) {
+      await rm(temp, { recursive: true, force: true }).catch(() => undefined);
+      throw error;
     }
-    await writeFile(join(temp, PROMPT_FILE), serializePrompt(sharedMeta(prompt, prompt.attachments), prompt.body), { mode: 0o644 });
-    await rename(temp, dir);
-  } catch (error) {
-    await rm(temp, { recursive: true, force: true }).catch(() => undefined);
-    throw error;
-  }
-  await global.delete(id);
-  return repoStore.get(id);
+    await global.deleteWhileLocked(id);
+    return repoStore.get(id);
+  });
 }

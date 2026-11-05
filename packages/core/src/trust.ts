@@ -1,9 +1,9 @@
 import { createHash } from 'node:crypto';
 import { mkdir, readFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { basename, dirname, join } from 'node:path';
 import { attachmentLabel, resolveAttachments } from './attachments.ts';
 import { atomicWriteFile, sha256File } from './fsutil.ts';
-import type { ParkedPrompt } from './types.ts';
+import type { Attachment, ParkedPrompt } from './types.ts';
 
 const TRUST_FILE = '.trust.json';
 const MAX_CONFIRMATIONS = 2000;
@@ -18,20 +18,28 @@ export const countHiddenCharacters = (text: string): number => text.match(HIDDEN
 export const revealHiddenCharacters = (text: string): string =>
   text.replace(HIDDEN_CHARACTERS, char => `[U+${(char.codePointAt(0) as number).toString(16).toUpperCase().padStart(4, '0')}]`);
 
+/** The checkout a repo-store prompt lives in, from its own location. */
+function checkoutOf(prompt: ParkedPrompt): string | undefined {
+  const store = dirname(prompt.dir);
+  if (prompt.store !== 'repo' || basename(store) !== 'parked-prompts' || basename(dirname(store)) !== '.github') return undefined;
+  return dirname(dirname(store));
+}
+
 /**
- * A fingerprint of everything a prompt would deliver. Attached copies are hashed from
- * their bytes on disk, not from what the frontmatter claims.
+ * A fingerprint of everything a prompt would deliver, read from the bytes on disk rather
+ * than from what the frontmatter claims. For a repo prompt that includes the files it
+ * refers to: a pull can change those as easily as the prompt, and they go to the agent too.
  */
 export async function contentHash(prompt: ParkedPrompt): Promise<string> {
   const hash = createHash('sha256');
   hash.update(JSON.stringify({ title: prompt.title, body: prompt.body, mode: prompt.mode ?? '', model: prompt.model ?? '' }));
-  const { resolved, missing } = await resolveAttachments(prompt, undefined);
+  const { resolved, missing } = await resolveAttachments(prompt, checkoutOf(prompt));
+  const rangeOf = (attachment: Attachment) => (attachment.kind === 'workspace' ? JSON.stringify(attachment.range ?? null) : '');
   for (const item of resolved) {
-    hash.update(`\0${item.attachment.path}\0${await sha256File(item.absolutePath)}`);
+    hash.update(`\0${item.attachment.path}\0${rangeOf(item.attachment)}\0${await sha256File(item.absolutePath)}`);
   }
-  for (const item of missing) {
-    const { attachment } = item;
-    hash.update(`\0${attachment.kind}\0${attachment.path}\0${attachment.kind === 'workspace' ? JSON.stringify(attachment.range ?? null) : item.reason}`);
+  for (const { attachment } of missing) {
+    hash.update(`\0${attachment.kind}\0${attachment.path}\0${rangeOf(attachment)}\0missing`);
   }
   return hash.digest('hex');
 }

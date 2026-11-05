@@ -43,6 +43,33 @@ test('writing a prompt saves a draft, and parking files it', async ({ openCanvas
   expect(prompts).toMatchObject([{ body: 'Refactor the auth module', status: 'parked', repo: { remote: 'github.com/o/r' } }])
 })
 
+test('a draft deleted elsewhere keeps your text, as a new draft', async ({ openCanvas }) => {
+  const { page } = await openCanvas({ repoPath: root })
+  const text = page.getByLabel('Prompt text')
+  await text.fill('First version')
+  await expect(page.getByRole('status').filter({ hasText: 'Draft saved' })).toBeVisible()
+  const [first] = (await catalog.list('repo')).prompts
+  await catalog.global.delete(first?.id as string)
+
+  await text.fill('Second version, still here')
+  await expect.poll(async () => (await catalog.list('repo')).prompts.map(prompt => prompt.body)).toEqual(['Second version, still here'])
+  await expect(text).toHaveValue('Second version, still here')
+})
+
+test('a failed save keeps your text instead of saying it parked', async ({ openCanvas }) => {
+  const { page } = await openCanvas({ repoPath: root })
+  const text = page.getByLabel('Prompt text')
+  await text.fill('Do not lose this')
+  await expect(page.getByRole('status').filter({ hasText: 'Draft saved' })).toBeVisible()
+  const [draft] = (await catalog.list('repo')).prompts
+  await writeFile(join(draft?.dir as string, '.lock'), 'held by another process')
+
+  await page.getByRole('button', { name: 'Park', exact: true }).click()
+  await expect(page.getByRole('status').filter({ hasText: 'Not saved' })).toBeVisible({ timeout: 15_000 })
+  await expect(text).toHaveValue('Do not lose this')
+  expect((await catalog.global.get(draft?.id as string)).status).toBe('draft')
+})
+
 test('a pasted image is stored and shown, under the page\'s security policy', async ({ openCanvas }) => {
   const { page } = await openCanvas({ repoPath: root })
   await page.getByLabel('Prompt text').fill('See the screenshot')

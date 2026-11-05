@@ -5,7 +5,7 @@ import * as vscode from 'vscode';
 import { writePendingRestore, type ParkedPrompt } from '@parked-prompts/core';
 import type { ParkedPromptsApi } from '../../src/extension.ts';
 
-const EXTENSION_ID = 'jamesmontemagno.parked-prompts';
+const EXTENSION_ID = 'vs-publisher-473885.parked-prompts';
 const WORKSPACE = process.env.PARKED_TEST_WORKSPACE as string;
 
 const chatInputs = () => vscode.workspace.textDocuments.filter(document => document.uri.scheme === 'chatSessionInput');

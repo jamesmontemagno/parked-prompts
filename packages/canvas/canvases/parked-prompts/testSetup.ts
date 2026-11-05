@@ -8,7 +8,7 @@ import canvas from './canvas.ts'
 export const REPO_INPUT = (root: string) => ({ repoPath: root })
 
 /** A temporary home and Git repository, with the canvas open on them. */
-export async function setup() {
+export async function setup(options: { sendToAgent?: () => Promise<void> } = {}) {
   const scratch = await mkdtemp(join(tmpdir(), 'parked-canvas-'))
   const home = join(scratch, 'home')
   const root = join(scratch, 'repo')
@@ -21,7 +21,7 @@ export async function setup() {
   const repo = await readRepoInfo(root)
   const catalog = new PromptCatalog({ home, ...(repo && { repo }) })
   let time = Date.parse('2026-06-01T00:00:00Z')
-  const harness = await createTestCanvas(canvas, { now: () => time })
+  const harness = await createTestCanvas(canvas, { now: () => time, ...(options.sendToAgent && { sendToAgent: options.sendToAgent }) })
   await harness.open('test', REPO_INPUT(root))
 
   return {

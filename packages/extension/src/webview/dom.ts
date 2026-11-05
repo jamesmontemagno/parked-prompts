@@ -79,14 +79,24 @@ export function settleRequest(message: Extract<ToWebview, { type: 'saved' | 'fai
   if (!entry) return;
   waiting.delete(message.requestId);
   if (message.type === 'saved') entry.resolve(message);
-  else entry.reject(new Error(message.message));
+  else entry.reject(Object.assign(new Error(message.message), { code: message.code }));
 }
 
 let openMenu: HTMLElement | undefined;
+let menuClosed: () => void = () => {};
+
+export const isMenuOpen = (): boolean => openMenu !== undefined;
+
+/** Called after a menu closes, so work that waited for it can run. */
+export const onMenuClosed = (listener: () => void): void => {
+  menuClosed = listener;
+};
 
 export function closeMenu(): void {
-  openMenu?.remove();
+  if (!openMenu) return;
+  openMenu.remove();
   openMenu = undefined;
+  menuClosed();
 }
 
 export interface MenuItem {

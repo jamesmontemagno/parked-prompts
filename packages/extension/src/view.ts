@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { randomBytes } from 'node:crypto';
-import { attachmentLabel, errorMessage, excerpt, isImageFile, matchRepo, pastedImageName, type ParkedPrompt, type PromptRef } from '@parked-prompts/core';
+import { attachmentLabel, errorMessage, excerpt, isImageFile, matchRepo, ParkedPromptsError, pastedImageName, type ParkedPrompt, type PromptRef } from '@parked-prompts/core';
 import type { PromptActions } from './actions.ts';
 import type { AttachmentView, ModelOption, PromptView, ToHost, ToWebview, ViewState } from './protocol.ts';
 import type { ParkedService } from './service.ts';
@@ -167,12 +167,24 @@ export class ParkedViewProvider implements vscode.WebviewViewProvider, vscode.Di
     return store.create({ ...fields, status: 'draft', ...(repo && { repo }) });
   }
 
+  /** A draft this request created goes away if the attach fails, or the next autosave would make a second one. */
+  async #attachToComposer(message: { id?: string; title: string; body: string; mode: string; model: string }, attach: (prompt: ParkedPrompt) => Promise<ParkedPrompt>): Promise<ParkedPrompt> {
+    const prompt = await this.#saveComposer(message);
+    try {
+      return await attach(prompt);
+    } catch (error) {
+      if (!message.id) await this.#service.catalog.global.delete(prompt.id).catch(() => undefined);
+      throw error;
+    }
+  }
+
   async #handle(message: ToHost): Promise<void> {
     try {
       await this.#dispatch(message);
     } catch (error) {
       const text = errorMessage(error);
-      if ('requestId' in message) this.#post({ type: 'failed', requestId: message.requestId, message: text });
+      const code = error instanceof ParkedPromptsError ? error.code : undefined;
+      if ('requestId' in message) this.#post({ type: 'failed', requestId: message.requestId, message: text, ...(code && { code }) });
       else void vscode.window.showErrorMessage(text);
     }
   }
@@ -209,9 +221,8 @@ export class ParkedViewProvider implements vscode.WebviewViewProvider, vscode.Di
       case 'addImage': {
         if (!ALLOWED_IMAGES.has(message.mime)) throw new Error('That kind of image cannot be attached.');
         if (message.dataBase64.length > MAX_IMAGE_BASE64) throw new Error('That image is larger than the 25 MB limit.');
-        const prompt = await this.#saveComposer(message);
         const name = message.name || pastedImageName(message.mime);
-        await this.#replyWith(message.requestId, await catalog.global.addBytes(prompt.id, Buffer.from(message.dataBase64, 'base64'), { name, mime: message.mime }));
+        await this.#replyWith(message.requestId, await this.#attachToComposer(message, prompt => catalog.global.addBytes(prompt.id, Buffer.from(message.dataBase64, 'base64'), { name, mime: message.mime })));
         return;
       }
       case 'pickFiles': {
@@ -220,9 +231,11 @@ export class ParkedViewProvider implements vscode.WebviewViewProvider, vscode.Di
           this.#post({ type: 'failed', requestId: message.requestId, message: '' });
           return;
         }
-        let prompt = await this.#saveComposer(message);
-        for (const file of files) prompt = await this.#actions.attachFile(prompt, file.fsPath);
-        await this.#replyWith(message.requestId, prompt);
+        await this.#replyWith(message.requestId, await this.#attachToComposer(message, async prompt => {
+          let current = prompt;
+          for (const file of files) current = await this.#actions.attachFile(current, file.fsPath);
+          return current;
+        }));
         return;
       }
       case 'removeAttachment': {

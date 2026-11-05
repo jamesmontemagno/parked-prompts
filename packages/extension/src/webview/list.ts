@@ -1,5 +1,5 @@
 import type { PromptView, ViewState } from '../protocol.ts';
-import { closeMenu, h, icon, post, showMenu, timeAgo, type MenuItem } from './dom.ts';
+import { h, icon, isMenuOpen, onMenuClosed, post, showMenu, timeAgo, type MenuItem } from './dom.ts';
 
 const matches = (prompt: PromptView, query: string) => {
   if (!query) return true;
@@ -90,14 +90,38 @@ export class PromptList {
   /** Done groups stay as the user left them when the list refreshes. */
   #doneOpen = false;
 
+  /** What was last drawn, so a refresh with nothing new leaves the page alone. */
+  #drawn = '';
+  #pressed = false;
+  #waiting = false;
+
   constructor() {
     this.#search.addEventListener('input', () => this.#renderContent());
     this.element.append(h('div', { class: 'list-head' }, this.#search, this.#scopes), this.#content);
+    // Replacing a row while it is being clicked loses the click, so changes wait for the press to end.
+    this.#content.addEventListener('pointerdown', () => { this.#pressed = true; });
+    document.addEventListener('pointerup', () => {
+      this.#pressed = false;
+      setTimeout(() => this.#flush(), 50);
+    });
+    onMenuClosed(() => this.#flush());
   }
 
   update(state: ViewState): void {
     this.#state = state;
-    closeMenu();
+    this.#waiting = true;
+    this.#flush();
+  }
+
+  /** The store changes whenever anything saves, including the composer, so this runs often. */
+  #flush(): void {
+    const state = this.#state;
+    if (!state || !this.#waiting || this.#pressed || isMenuOpen()) return;
+    this.#waiting = false;
+    // Minutes are part of it, so "5m ago" still moves on.
+    const drawn = JSON.stringify([state, Math.floor(Date.now() / 60_000)]);
+    if (drawn === this.#drawn) return;
+    this.#drawn = drawn;
     const scope = (value: 'repo' | 'all', label: string) =>
       h('button', { type: 'button', class: state.scope === value ? 'selected' : '', 'aria-pressed': String(state.scope === value), onclick: () => post({ type: 'setScope', scope: value }) }, label);
     this.#scopes.replaceChildren(scope('repo', state.repoLabel ? 'This repo' : 'No repo'), scope('all', 'All'));

@@ -100,7 +100,8 @@ export class Composer {
     }
   }
 
-  load(prompt: PromptView): void {
+  async load(prompt: PromptView): Promise<void> {
+    await this.#flush();
     this.#fields = { id: prompt.id, title: prompt.title, body: prompt.body, mode: prompt.mode ?? '', model: prompt.model ?? '', status: prompt.status };
     this.#attachments = prompt.attachments;
     this.#setStatus(prompt.status === 'draft' ? 'Draft' : 'Editing');
@@ -196,16 +197,33 @@ export class Composer {
     return run;
   }
 
-  #save(): Promise<void> {
+  /** Resolves to whether the text is safely stored. A failure keeps it in the composer. */
+  #save(): Promise<boolean> {
     return this.#enqueue(async () => {
-      const { id, body, title } = this.#fields;
-      if (!id && !body.trim() && !title.trim()) return;
-      const reply = await request(requestId => ({ type: 'saveDraft', requestId, ...this.#payload() }));
-      this.#fields.id = reply.id;
-      this.#setStatus(this.#fields.status === 'draft' ? 'Draft saved' : 'Saved');
+      const fields = this.#fields;
+      const { id, body, title } = fields;
+      if (!id && !body.trim() && !title.trim()) return true;
+      let reply;
+      try {
+        reply = await request(requestId => ({ type: 'saveDraft', requestId, ...this.#payload() }));
+      } catch (error) {
+        if ((error as { code?: string }).code !== 'not_found') throw error;
+        // It was deleted somewhere else. The text in front of the user still matters, so keep it as a new draft.
+        fields.id = undefined;
+        fields.status = 'draft';
+        reply = await request(requestId => ({ type: 'saveDraft', requestId, ...this.#payload() }));
+      }
+      // The composer may have moved on to another prompt while this was saving.
+      fields.id = reply.id;
+      if (this.#fields !== fields) return true;
+      this.#setStatus(fields.status === 'draft' ? 'Draft saved' : 'Saved');
       this.#updateButtons();
       this.#persist();
-    }).catch(error => this.#setStatus(error.message));
+      return true;
+    }).catch(error => {
+      this.#setStatus(`Not saved: ${error.message}`);
+      return false;
+    });
   }
 
   async #flush(): Promise<void> {
@@ -221,8 +239,7 @@ export class Composer {
     this.#readInputs();
     if (this.#timer) clearTimeout(this.#timer);
     this.#timer = undefined;
-    await this.#save();
-    await this.#queue;
+    if (!(await this.#save())) return;
     const { id, status } = this.#fields;
     if (!id) return;
     if (status === 'draft') post({ type: 'park', id });

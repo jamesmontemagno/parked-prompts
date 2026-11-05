@@ -75,7 +75,7 @@ export type ToHost =
 export type ToWebview =
   | { type: 'state'; state: ViewState }
   | { type: 'saved'; requestId: number; id: string; prompt?: PromptView }
-  | { type: 'failed'; requestId: number; message: string }
+  | { type: 'failed'; requestId: number; message: string; code?: string }
   | { type: 'load'; prompt: PromptView }
   | { type: 'newPrompt' }
   | { type: 'notice'; message: string };

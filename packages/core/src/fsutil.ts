@@ -1,6 +1,6 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { createReadStream } from 'node:fs';
-import { lstat, mkdir, open, rename, rm, stat, unlink } from 'node:fs/promises';
+import { link, lstat, mkdir, open, readFile, rename as fsRename, rm, stat, unlink, utimes } from 'node:fs/promises';
 import { basename, dirname, join } from 'node:path';
 import { ParkedPromptsError, isNodeError } from './errors.ts';
 
@@ -13,7 +13,7 @@ export const pathExists = (path: string): Promise<boolean> =>
 async function renameWithRetry(from: string, to: string): Promise<void> {
   for (let attempt = 0; ; attempt += 1) {
     try {
-      await rename(from, to);
+      await fsRename(from, to);
       return;
     } catch (error) {
       if (attempt >= 8 || !isNodeError(error, 'EPERM', 'EACCES', 'EBUSY')) throw error;
@@ -104,37 +104,63 @@ export async function sha256File(path: string): Promise<string> {
 }
 
 export interface LockOptions {
-  /** A lock older than this was left behind by a process that died. */
+  /** A lock not refreshed for this long was left behind by a process that died. */
   staleMs?: number;
   timeoutMs?: number;
+  /** An entry's lock must not create its folder, or locking a deleted entry would bring the folder back. */
+  createDirectory?: boolean;
+}
+
+/** One waiter wins the rename. If the lock was retaken just before it, the lock is put back. */
+async function takeOverStaleLock(lockPath: string, token: string): Promise<void> {
+  const seen = await readFile(lockPath, 'utf8').catch(() => undefined);
+  const claim = `${lockPath}.${token}.stale`;
+  try {
+    await fsRename(lockPath, claim);
+  } catch {
+    return;
+  }
+  const claimed = await readFile(claim, 'utf8').catch(() => undefined);
+  if (claimed !== seen) await link(claim, lockPath).catch(() => undefined);
+  await rm(claim, { force: true }).catch(() => undefined);
 }
 
 /**
  * Runs `task` holding a lock file, so the extension and the canvas cannot lose each
- * other's changes to the same entry.
+ * other's changes to the same entry. The lock is refreshed while held, so a slow task
+ * is never mistaken for a dead one, and only its owner removes it.
  */
 export async function withLock<T>(lockPath: string, task: () => Promise<T>, options: LockOptions = {}): Promise<T> {
-  const { staleMs = 15_000, timeoutMs = 5_000 } = options;
+  const { staleMs = 15_000, timeoutMs = 5_000, createDirectory = true } = options;
   const started = Date.now();
-  await mkdir(dirname(lockPath), { recursive: true });
+  const token = randomBytes(8).toString('hex');
+  if (createDirectory) await mkdir(dirname(lockPath), { recursive: true });
   for (let delay = 10; ; delay = Math.min(delay * 2, 200)) {
     try {
       const handle = await open(lockPath, 'wx', 0o600);
+      await handle.writeFile(token);
       await handle.close();
       break;
     } catch (error) {
+      if (isNodeError(error, 'ENOENT')) throw new ParkedPromptsError('not_found', 'That prompt no longer exists.');
       if (!isNodeError(error, 'EEXIST', 'EPERM', 'EACCES')) throw error;
       const held = await stat(lockPath).catch(() => undefined);
-      if (held && Date.now() - held.mtimeMs > staleMs) await rm(lockPath, { force: true }).catch(() => undefined);
+      if (held && Date.now() - held.mtimeMs > staleMs) await takeOverStaleLock(lockPath, token);
       if (Date.now() - started > timeoutMs) {
         throw new ParkedPromptsError('locked', 'This prompt is being changed somewhere else. Try again in a moment.');
       }
       await sleep(delay);
     }
   }
+  const heartbeat = setInterval(() => {
+    const now = new Date();
+    void utimes(lockPath, now, now).catch(() => undefined);
+  }, Math.max(Math.floor(staleMs / 3), 25));
+  heartbeat.unref();
   try {
     return await task();
   } finally {
-    await rm(lockPath, { force: true }).catch(() => undefined);
+    clearInterval(heartbeat);
+    if ((await readFile(lockPath, 'utf8').catch(() => undefined)) === token) await rm(lockPath, { force: true }).catch(() => undefined);
   }
 }

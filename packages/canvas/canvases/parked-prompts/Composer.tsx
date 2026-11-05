@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ClipboardEvent, type ReactNode } from 'react'
-import { createCanvasHooks, getCanvasClient } from '@rwoll/canvas-kit/react'
+import { CanvasActionError, createCanvasHooks, getCanvasClient } from '@rwoll/canvas-kit/react'
 import type canvas from './canvas.ts'
 import { UPLOAD_CHUNK_BYTES, type PromptSummary } from './shared.ts'
 
@@ -65,21 +65,41 @@ function Composer({ editing, onDoneEditing }: { editing: Draft | undefined; onDo
   const queue = useRef<Promise<unknown>>(Promise.resolve())
   const latest = useRef(draft)
 
+  // Goes up when the composer moves on, so a late reply cannot land on the next prompt.
+  const generation = useRef(0)
+
   // One at a time, so a slow first save cannot create two drafts.
-  const enqueue = (task: () => Promise<void>) => {
-    const step = queue.current.then(task).catch((error: Error) => setNote(error.message))
+  const enqueue = <T,>(task: () => Promise<T>): Promise<T | undefined> => {
+    const step = queue.current.then(task).catch((error: Error) => {
+      setNote(error.message)
+      return undefined
+    })
     queue.current = step
     return step
   }
 
+  /** Resolves to true once the text is safely stored. A failure leaves it in the composer. */
   const saveNow = () =>
     enqueue(async () => {
-      const { id, title, body, mode, status } = latest.current
-      if (!id && !title.trim() && !body.trim()) return
-      const saved = await run('save_prompt', { ...(id && { id }), title, body, mode })
-      setDraft(current => ({ ...current, id: saved.id }))
-      latest.current = { ...latest.current, id: saved.id }
-      setNote(status === 'draft' ? 'Draft saved' : 'Saved')
+      const started = generation.current
+      const { id, title, body, mode } = latest.current
+      if (!id && !title.trim() && !body.trim()) return true
+      const fields = { title, body, mode }
+      let saved
+      try {
+        saved = await run('save_prompt', { ...(id && { id }), ...fields })
+      } catch (error) {
+        if (!(error instanceof CanvasActionError) || error.code !== 'not_found') throw new Error(`Not saved: ${(error as Error).message}`)
+        // It was deleted somewhere else. The text in front of the user still matters, so keep it as a new draft.
+        saved = await run('save_prompt', fields)
+        latest.current = { ...latest.current, status: 'draft' }
+      }
+      if (generation.current === started) {
+        latest.current = { ...latest.current, id: saved.id }
+        setDraft(latest.current)
+        setNote(latest.current.status === 'draft' ? 'Draft saved' : 'Saved')
+      }
+      return true
     })
 
   const change = (patch: Partial<Draft>) => {
@@ -92,6 +112,7 @@ function Composer({ editing, onDoneEditing }: { editing: Draft | undefined; onDo
 
   const reset = (message = '') => {
     clearTimeout(timer.current)
+    generation.current += 1
     latest.current = emptyDraft()
     setDraft(latest.current)
     setNote(message)
@@ -100,12 +121,19 @@ function Composer({ editing, onDoneEditing }: { editing: Draft | undefined; onDo
 
   const park = async () => {
     clearTimeout(timer.current)
-    await saveNow()
-    await queue.current
+    if (!(await saveNow())) return
     const { id, status, title, body, mode } = latest.current
     if (!id) return
     if (status === 'draft') await run('save_prompt', { id, title, body, mode, status: 'parked' })
     reset(status === 'draft' ? 'Parked' : 'Saved')
+  }
+
+  const discard = async () => {
+    clearTimeout(timer.current)
+    await queue.current
+    const { id } = latest.current
+    reset()
+    if (id) void enqueue(() => run('delete_prompt', { store: 'global', id }))
   }
 
   const upload = (file: File, name = file.name) =>
@@ -149,7 +177,7 @@ function Composer({ editing, onDoneEditing }: { editing: Draft | undefined; onDo
     <section className="block composer" aria-label="New prompt">
       <input type="text" aria-label="Title" placeholder="Title (optional)" maxLength={200} value={draft.title} onChange={event => change({ title: event.target.value })} />
       <textarea aria-label="Prompt text" placeholder="Write a prompt to save for later. Paste images, or attach files." rows={4} value={draft.body} onPaste={onPaste} onChange={event => change({ body: event.target.value })} />
-      {current && <Attachments prompt={current} onRemove={(path, startLine, endLine) => void enqueue(() => run('remove_attachment', { id: current.id, path, ...(startLine && endLine && { startLine, endLine }) }).then(() => undefined))} />}
+      {current && <Attachments prompt={current} onRemove={(path, startLine, endLine) => void enqueue(() => run('remove_attachment', { id: current.id, path, ...(startLine && endLine && { startLine, endLine }) }))} />}
       <div className="button-row">
         <label className="file-button">
           Attach files
@@ -169,7 +197,7 @@ function Composer({ editing, onDoneEditing }: { editing: Draft | undefined; onDo
         </select>
         <span className="spacer" />
         <span className="notice" role="status">{note}</span>
-        {draft.id && draft.status === 'draft' && <button type="button" onClick={() => { const { id } = latest.current; reset(); if (id) void enqueue(() => run('delete_prompt', { store: 'global', id }).then(() => undefined)) }}>Discard</button>}
+        {draft.id && draft.status === 'draft' && <button type="button" onClick={() => void discard()}>Discard</button>}
         <button type="button" className="primary" disabled={!hasContent} onClick={() => void park()}>{draft.status === 'draft' ? 'Park' : 'Done editing'}</button>
       </div>
     </section>
