@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Header } from '../../ui'
+import { ClockIcon, Header, LogoIcon, QueueIcon, SearchIcon, SendIcon } from '../../ui'
 import '../../ui/theme.css'
 import './App.css'
 import { Attachments, Composer, Dialog, ReviewDialog, timeAgo, useCanvas, type Draft, type Review } from './Composer.tsx'
@@ -25,30 +25,30 @@ function Row({ prompt, armed, onEdit, onReview, onMove }: { prompt: PromptSummar
   const summary = prompt.excerpt.startsWith(titleText) ? prompt.excerpt.slice(titleText.length).trim() : prompt.excerpt
   const details = [state.scope === 'all' || !prompt.inCurrentRepo ? prompt.repoLabel : undefined, timeAgo(prompt.updatedAt)].filter(Boolean).join(' · ')
   return (
-    <li className={prompt.status === 'done' ? 'prompt is-done' : 'prompt'}>
+    <li className={['prompt', prompt.status === 'done' && 'is-done', armed && 'is-armed', prompt.needsConfirmation && 'needs-review'].filter(Boolean).join(' ')}>
       <div className="prompt-head">
         <span className="prompt-title">{prompt.title}</span>
         {prompt.store === 'repo' && <span className="badge state-waiting" title="Stored in the repository. It arrived by Git, so read it before using it.">Repo</span>}
         {armed && <span className="badge state-running">Waiting for idle</span>}
+        <span className="muted time">{details}</span>
       </div>
       {summary && <p className="prompt-excerpt">{summary}</p>}
       <Attachments prompt={prompt} />
       {prompt.warnings.map(warning => <p key={warning} className="notice warn">{warning}</p>)}
       {error && <p role="alert" className="error">{error}</p>}
       <div className="prompt-foot">
-        <span className="muted time">{details}</span>
-        <span className="spacer" />
         {prompt.needsConfirmation ? (
           <button type="button" className="primary" onClick={onReview}>Review</button>
         ) : prompt.status !== 'done' && (
-          <>
-            <button type="button" title="Send it to this session now" onClick={act(() => run('send_now', ref))}>Send</button>
-            <button type="button" title="Send it after the agent's current turn" onClick={act(() => run('queue_prompt', ref))}>Queue</button>
+          <div className="send-actions" role="group" aria-label="Send this prompt">
+            <button type="button" className="send" title="Send it to this session now" onClick={act(() => run('send_now', ref))}><SendIcon />Send</button>
+            <button type="button" title="Send it after the agent's current turn" onClick={act(() => run('queue_prompt', ref))}><QueueIcon />Queue</button>
             {armed
-              ? <button type="button" onClick={act(() => run('disarm', ref))}>Cancel wait</button>
-              : <button type="button" title="Send it the next time the agent is idle, while this canvas stays open" onClick={act(() => run('arm_idle', ref))}>When idle</button>}
-          </>
+              ? <button type="button" onClick={act(() => run('disarm', ref))}><ClockIcon />Cancel wait</button>
+              : <button type="button" title="Send it the next time the agent is idle, while this canvas stays open" onClick={act(() => run('arm_idle', ref))}><ClockIcon />When idle</button>}
+          </div>
         )}
+        <span className="spacer" />
         {prompt.store === 'global' && <button type="button" className="link" onClick={onEdit}>Edit</button>}
         {prompt.store === 'global' && state.repo?.isGit && <button type="button" className="link" onClick={onMove}>Move to repo</button>}
         {prompt.status === 'done'
@@ -86,8 +86,8 @@ function Group({ title, prompts, children }: { title: string; prompts: PromptSum
   if (prompts.length === 0) return null
   return (
     <section className="block">
-      <h2 className="label">{title} ({prompts.length})</h2>
-      <ul className="rows">{prompts.map(children)}</ul>
+      <h2 className="label group-title" aria-label={`${title} (${prompts.length})`}>{title}<span className="count">{prompts.length}</span></h2>
+      <ul className="rows prompt-list">{prompts.map(children)}</ul>
     </section>
   )
 }
@@ -133,7 +133,7 @@ export default function App() {
 
   return (
     <>
-      <Header title="Parked prompts" badge={badge}>
+      <Header title="Parked prompts" icon={<LogoIcon />} badge={badge}>
         <div className="scope" role="group" aria-label="Which prompts to show">
           <button type="button" aria-pressed={state.scope === 'repo'} onClick={() => void run('set_scope', { scope: 'repo' }).catch(fail)}>{state.repo?.label ?? 'No repo'}</button>
           <button type="button" aria-pressed={state.scope === 'all'} onClick={() => void run('set_scope', { scope: 'all' }).catch(fail)}>All repos</button>
@@ -153,11 +153,19 @@ export default function App() {
           </div>
         )}
         {error && <p role="alert" className="error">{error}</p>}
-        <input type="search" className="search" aria-label="Search parked prompts" placeholder="Search" value={query} onChange={event => setQuery(event.target.value)} />
+        <div className="search-box">
+          <SearchIcon />
+          <input type="search" className="search" aria-label="Search parked prompts" placeholder="Search" value={query} onChange={event => setQuery(event.target.value)} />
+        </div>
         <Group title="Drafts" prompts={shown.filter(prompt => prompt.status === 'draft')}>{row}</Group>
         <Group title="Parked" prompts={shown.filter(prompt => prompt.status === 'parked')}>{row}</Group>
         <Group title="Done" prompts={shown.filter(prompt => prompt.status === 'done')}>{row}</Group>
-        {shown.length === 0 && <p className="muted">{query ? 'Nothing matches that search.' : 'Nothing parked here yet.'}</p>}
+        {shown.length === 0 && (
+          <div className="empty">
+            {query ? <SearchIcon /> : <LogoIcon />}
+            <p>{query ? 'Nothing matches that search.' : 'Nothing parked here yet.'}</p>
+          </div>
+        )}
         {state.problems.length > 0 && <p className="notice warn">{state.problems.length} saved {state.problems.length === 1 ? 'entry' : 'entries'} could not be read: {state.problems.map(problem => problem.id).join(', ')}</p>}
       </main>
       {review && <ReviewDialog review={review} onClose={() => setReview(undefined)} />}
