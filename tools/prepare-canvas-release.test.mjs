@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -15,8 +15,10 @@ test('chooses a version from the last publication and the changes', () => {
   assert.throws(() => versionForCanvasRelease('0.1.0', { version: '0.1.0-beta' }, false), /stable three-part canvas version/);
 });
 
-test('stamps canvas changes and changed output, but not an unchanged build', () => {
-  const root = mkdtempSync(join(tmpdir(), 'canvas-release-test-'));
+test('stamps canvas changes and changed output through aliased paths, but not an unchanged build', () => {
+  const temp = mkdtempSync(join(tmpdir(), 'canvas-release-test-'));
+  const root = join(temp, 'repo');
+  const alias = join(temp, 'repo-alias');
   const git = (...args) => {
     const result = spawnSync('git', args, { cwd: root, encoding: 'utf8' });
     assert.equal(result.status, 0, result.stderr);
@@ -30,7 +32,7 @@ test('stamps canvas changes and changed output, but not an unchanged build', () 
   const commit = message => git('-c', 'user.name=Test', '-c', 'user.email=test@example.com', 'commit', '-m', message);
   const builtManifest = 'packages/canvas/dist/marketplace/plugins/parked-prompts/.plugin/plugin.json';
   const manifest = '{"name":"parked-prompts","version":"0.1.9"}\n';
-  const run = (mode, worktree = root) => {
+  const run = (mode, worktree = alias) => {
     const result = spawnSync(process.execPath, [join(worktree, 'tools/prepare-canvas-release.mjs'), mode], {
       cwd: join(worktree, 'packages/canvas'), encoding: 'utf8',
     });
@@ -39,6 +41,8 @@ test('stamps canvas changes and changed output, but not an unchanged build', () 
   };
 
   try {
+    mkdirSync(root);
+    symlinkSync(root, alias, process.platform === 'win32' ? 'junction' : 'dir');
     git('init', '-b', 'main');
     write('.gitignore', 'packages/canvas/dist/\n');
     write('packages/canvas/package.json', '{"version":"0.1.0"}\n');
@@ -64,7 +68,7 @@ test('stamps canvas changes and changed output, but not an unchanged build', () 
     git('add', 'packages/core/src/store.ts');
     commit('Core change');
     git('worktree', 'add', '--detach', 'linked-source', 'HEAD');
-    const linked = join(root, 'linked-source');
+    const linked = join(alias, 'linked-source');
     write(join('linked-source', builtManifest), '{"name":"parked-prompts","version":"0.1.9","changed":true}\n');
     assert.equal(run('--baseline', linked), '0.1.9');
     assert.equal(run('--stamp', linked), '0.1.10');
@@ -76,6 +80,6 @@ test('stamps canvas changes and changed output, but not an unchanged build', () 
     commit('Canvas change');
     assert.equal(run('--stamp'), '0.1.10');
   } finally {
-    rmSync(root, { recursive: true, force: true });
+    rmSync(temp, { recursive: true, force: true });
   }
 });
