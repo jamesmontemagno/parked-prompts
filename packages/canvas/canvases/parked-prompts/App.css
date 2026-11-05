@@ -1,0 +1,31 @@
+.spacer { flex: 1 1 auto; }
+.composer { gap: 6px; }
+.composer textarea { min-height: 84px; }
+.composer select { height: 26px; padding: 0 4px; line-height: 18px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); color: inherit; font: inherit; }
+.reference { display: inline-flex; gap: 4px; align-items: center; }
+.reference input { width: 150px; height: 24px; }
+.file-button { display: inline-flex; align-items: center; height: 24px; padding: 0 8px; border: 1px solid var(--line); border-radius: var(--radius); cursor: pointer; }
+.file-button:hover { background: var(--tint); }
+.file-button:focus-within { outline: 2px solid var(--focus); outline-offset: 1px; }
+.file-button input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.search { width: 100%; height: 24px; padding: 2px 6px; border: 1px solid var(--line); border-radius: var(--radius); background: transparent; color: inherit; font: inherit; }
+.scope { display: inline-flex; gap: 2px; }
+.scope button[aria-pressed='true'] { background: var(--tint); font-weight: var(--semibold); }
+.link { border: 0; padding: 0 4px; background: transparent; color: var(--accent); }
+.link.danger, .link.danger:hover { color: var(--bad); }
+
+.prompt { display: grid; gap: 2px; padding: 6px 0; min-width: 0; }
+.rows > .prompt + .prompt { border-top: 1px solid var(--hairline); }
+.is-done .prompt-title { color: var(--muted); text-decoration: line-through; }
+.prompt-head { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
+.prompt-title { font-weight: var(--semibold); overflow-wrap: anywhere; }
+.prompt-excerpt { color: var(--muted); overflow-wrap: anywhere; }
+.prompt-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.time { font-size: 12px; }
+
+.attachments { display: flex; flex-wrap: wrap; gap: 4px 10px; margin: 0; padding: 0; list-style: none; font-size: 12px; }
+.attachment { display: inline-flex; align-items: center; gap: 4px; min-width: 0; }
+.attachment.missing { color: var(--warn); }
+.attachment img { width: 36px; height: 28px; object-fit: cover; border: 1px solid var(--hairline); border-radius: var(--radius); }
+.attachment-label { overflow: hidden; max-width: 240px; text-overflow: ellipsis; white-space: nowrap; }
+.review-text { max-height: 260px; color: inherit; }

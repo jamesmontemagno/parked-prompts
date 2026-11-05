@@ -1,0 +1,27 @@
+packages:
+  - packages/*
+
+# Supply-chain hardening, following canvas-kit's defaults.
+
+# Install only versions published at least 7 days ago, including transitive
+# dependencies. canvas-kit is exempt at the exact version this repo was built
+# against; later versions wait like everything else.
+minimumReleaseAge: 10080
+minimumReleaseAgeIgnoreMissingTime: false
+minimumReleaseAgeExclude:
+  - '@rwoll/canvas-kit@0.3.0'
+
+# Never run dependency lifecycle scripts, and fail if a new one appears.
+ignoreScripts: true
+strictDepBuilds: true
+
+# The Copilot host supplies the SDK at run time; it is needed for types only.
+ignoredOptionalDependencies:
+  - '@github/copilot-sdk-darwin-arm64'
+  - '@github/copilot-sdk-darwin-x64'
+  - '@github/copilot-sdk-linux-arm64'
+  - '@github/copilot-sdk-linux-x64'
+  - '@github/copilot-sdk-linuxmusl-arm64'
+  - '@github/copilot-sdk-linuxmusl-x64'
+  - '@github/copilot-sdk-win32-arm64'
+  - '@github/copilot-sdk-win32-x64'

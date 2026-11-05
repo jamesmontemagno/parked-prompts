@@ -1,0 +1,37 @@
+{
+  "name": "parked-prompts-canvas",
+  "version": "0.1.0",
+  "description": "A Copilot canvas for parked prompts: send to this session, queue, or send when the agent goes idle.",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "pnpm --filter @parked-prompts/core build && vite build && canvas-kit build",
+    "typecheck": "tsc -p .",
+    "test": "vitest run",
+    "e2e": "playwright test",
+    "playwright:install": "playwright install chromium",
+    "check": "pnpm build && pnpm typecheck && pnpm test",
+    "release": "canvas-kit release"
+  },
+  "dependencies": {
+    "@parked-prompts/core": "workspace:*",
+    "@rwoll/canvas-kit": "0.3.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  },
+  "devDependencies": {
+    "@github/copilot-sdk": "^1.0.25",
+    "@playwright/test": "^1.60.0",
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.7",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.0",
+    "vitest": "^5.0.5"
+  }
+}

@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self'; style-src 'self'; font-src 'self'; script-src 'self'; base-uri 'none'; form-action 'none'">
+<title>Integrations: Parked Prompts</title>
+<meta name="description" content="How Parked Prompts works with VS Code chat, the Agents window, Copilot canvases, Git worktrees, and your repository.">
+<link rel="canonical" href="https://jamesmontemagno.github.io/parked-prompts/integrations/">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/site.css">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Integrations: Parked Prompts">
+<meta property="og:description" content="How Parked Prompts works with VS Code chat, the Agents window, Copilot canvases, Git worktrees, and your repository.">
+<meta property="og:url" content="https://jamesmontemagno.github.io/parked-prompts/integrations/">
+<meta property="og:image" content="https://jamesmontemagno.github.io/parked-prompts/assets/img/social.png">
+<meta name="twitter:card" content="summary_large_image">
+<script src="../assets/site.js" defer></script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="wrap">
+    <a class="brand" href="../"><img src="../assets/img/logo.svg" alt="" width="30" height="30">Parked Prompts</a>
+    <nav class="site-nav" aria-label="Main">
+      <a href="../integrations/" aria-current="page">Integrations</a>
+      <a href="../docs/">Docs</a>
+      <a href="../security/">Security</a>
+      <a href="https://github.com/jamesmontemagno/parked-prompts">GitHub</a>
+      <a class="nav-install" href="../#install">Install</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+<section class="page-head">
+  <div class="wrap">
+    <h1>One prompt. Every place you work.</h1>
+    <p class="lede">How Parked Prompts connects to VS Code chat, the Agents window, Copilot canvases, Git, and your repository.</p>
+  </div>
+</section>
+<section class="section">
+  <div class="wrap">
+    <div class="section-head">
+      <p class="eyebrow">At a glance</p>
+      <h2>What works where</h2>
+      <p>VS Code and Copilot allow different things in each place, so each surface does what it can, and says so when it can't.</p>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th scope="col">What you can do</th><th scope="col">Chat view</th><th scope="col">Agents window</th><th scope="col">Copilot canvas</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">Write a prompt with images and files</th><td class="yes">Sidebar composer</td><td class="part">Text, then pick files</td><td class="yes">Composer in the canvas</td></tr>
+          <tr><th scope="row">Restore into the chat input, unsent</th><td class="yes">With attachments</td><td class="part">Text, with files by path</td><td class="no">No: it sends instead</td></tr>
+          <tr><th scope="row">Park what you typed in chat</th><td class="part">Text only</td><td class="part">Text only</td><td class="no">No</td></tr>
+          <tr><th scope="row">Send now, or queue after this turn</th><td class="no">No</td><td class="no">No</td><td class="yes">Yes</td></tr>
+          <tr><th scope="row">Send when the agent goes idle</th><td class="no">No</td><td class="no">No</td><td class="yes">Yes, while it stays open</td></tr>
+          <tr><th scope="row">Run in a new worktree</th><td class="yes">Yes</td><td class="no">Not tested yet</td><td class="no">No</td></tr>
+          <tr><th scope="row">Move to the repository to share</th><td class="yes">Yes</td><td class="no">Not tested yet</td><td class="yes">Yes</td></tr>
+          <tr><th scope="row">Agent can list, read, and save drafts</th><td class="no">No</td><td class="no">No</td><td class="yes">Yes, but never send</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="chat">
+  <div class="wrap split">
+    <div>
+      <h2>Chat view</h2>
+      <p>VS Code has no API for the chat input, so restoring goes through one small adapter that calls its chat commands.</p>
+      <ul class="ticks">
+        <li>A new chat is the default, because filling an input replaces what's there</li>
+        <li>Restoring to the current chat warns first, if it finds text you typed</li>
+        <li>A file that's gone is flagged, rather than silently left out</li>
+      </ul>
+    </div>
+    <figure class="shot"><img src="../assets/shots/restored.webp" width="1800" height="1046" loading="lazy" alt="VS Code with a prompt restored into the chat input, with a file range and an image attached, and a notification that it has not been sent."><figcaption class="real">The packaged extension in VS Code Insiders 1.146.</figcaption></figure>
+    <pre class="code" tabindex="0" aria-label="The command behind restoring"><span class="c">// isPartialQuery is what keeps it from sending.</span>
+await commands.executeCommand(<span class="k">'workbench.action.chat.newChat'</span>);
+await commands.executeCommand(<span class="k">'workbench.action.chat.open'</span>, {
+  query: prompt.body,
+  isPartialQuery: <span class="k">true</span>,
+  attachFiles: [uri, { uri, range }],
+});</pre>
+  </div>
+</section>
+
+<section class="section" id="agents">
+  <div class="wrap split">
+    <div>
+      <h2>Agents window</h2>
+      <p>The same chat command is registered in this window but does nothing there, which we only found by running it. So the extension detects the window and uses the one that works.</p>
+      <ul class="ticks">
+        <li>No setting to change: the manifest declares support for this window</li>
+        <li>This command takes text only, so files are listed by absolute path</li>
+        <li>There are no sidebar views here, so it uses quick picks and input boxes</li>
+      </ul>
+    </div>
+    <figure class="shot"><img src="../assets/shots/agents.webp" width="1800" height="1125" loading="lazy" alt="The Agents window composer holding a restored prompt, with a notification that it has not been sent."><figcaption class="real">The Agents window in VS Code Insiders 1.146.</figcaption></figure>
+    <pre class="code" tabindex="0" aria-label="The command used in the Agents window"><span class="c">// Without prefillPrompt, this command sends. A test pins it down.</span>
+await commands.executeCommand(<span class="k">'workbench.action.sessions.newChat'</span>, {
+  prompt: textWithFilePaths,
+  prefillPrompt: <span class="k">true</span>,
+});</pre>
+  </div>
+</section>
+
+<section class="section alt" id="canvas">
+  <div class="wrap split">
+    <div>
+      <h2>Copilot canvas</h2>
+      <p>A canvas is a panel that belongs to a Copilot session, so unlike an extension it can see when the agent is busy and can deliver a message with attachments.</p>
+      <ul class="ticks">
+        <li>Built with <a href="https://github.com/rwoll/canvas-kit">canvas-kit</a>, in TypeScript and React, and tested in light, dark, and high contrast</li>
+        <li>Follows the store on disk, so prompts parked in the editor appear here live</li>
+        <li>Every send or arm action is only available to the page, never the agent</li>
+      </ul>
+    </div>
+    <figure class="shot">
+      <img class="only-light" src="../assets/shots/canvas-light.webp" width="1200" height="987" loading="lazy" alt="The Parked prompts canvas with Send, Queue, and When idle buttons.">
+      <img class="only-dark" src="../assets/shots/canvas-dark.webp" width="1200" height="987" loading="lazy" alt="The Parked prompts canvas with Send, Queue, and When idle buttons.">
+      <figcaption class="real">The built plugin in a browser, with the agent simulated. A live session is still to be checked.</figcaption>
+    </figure>
+    <pre class="code" tabindex="0" aria-label="How an action is limited to the page"><span class="c">// expose: 'ui' means the agent never gets this as a tool.</span>
+send_now: action({
+  description: <span class="k">'Send a prompt to this session now.'</span>,
+  expose: <span class="k">'ui'</span>,
+  input: promptRef,
+  run: async (ctx, ref) =&gt; {
+    const prompt = await getPrompt(ctx.state.repo, ref)
+    await assertConfirmed(ctx.state.repo, prompt)
+    await deliver(ctx, prompt, <span class="k">'immediate'</span>, ctx.now())
+  },
+})</pre>
+  </div>
+</section>
+
+<section class="section" id="worktrees">
+  <div class="wrap split">
+    <div>
+      <h2>Git worktrees</h2>
+      <p>When you don't want to wait, a worktree gives the prompt its own folder and branch. It takes only stable VS Code APIs and plain Git, and your attachments come along.</p>
+      <ol class="ticks">
+        <li>Confirm the branch and folder, then it runs <code>git worktree add</code></li>
+        <li>It leaves a one-time marker in the store, and opens the folder in a new window</li>
+        <li>That window takes the marker and restores the prompt into a new chat, unsent</li>
+      </ol>
+    </div>
+    <figure class="shot"><img src="../assets/shots/worktree-window.webp" width="1800" height="989" loading="lazy" alt="A new VS Code window opened on the worktree folder, with the prompt restored into its chat input and a notification that it has not been sent."><figcaption class="real">The new window, with the prompt waiting and the first checkout untouched.</figcaption></figure>
+  </div>
+</section>
+
+<section class="section alt" id="repository">
+  <div class="wrap split">
+    <div>
+      <h2>Your repository</h2>
+      <p>Commit a prompt to <code>.github/parked-prompts/</code> and your team has it too: a release checklist, a migration, or a review you want done the same way each time.</p>
+      <ul class="ticks">
+        <li>Moving lists exactly what will be added, and warns about screenshots and secrets</li>
+        <li>Your local path is removed, and nothing is committed for you</li>
+        <li>Everyone else reads it and says yes first. <a href="../security/">Here's why</a></li>
+      </ul>
+    </div>
+    <figure class="shot"><img src="../assets/shots/review.webp" width="1800" height="1046" loading="lazy" alt="A read-only preview of a repository prompt, behind a dialog asking whether to use it."><figcaption class="real">A prompt that arrived by Git, shown read-only before it can be used.</figcaption></figure>
+  </div>
+</section>
+
+<section class="section" id="store">
+  <div class="wrap">
+    <div class="section-head">
+      <p class="eyebrow">How they connect</p>
+      <h2>They don't talk. They share a folder.</h2>
+      <p>The extension and the canvas never call each other. Both read the same files through the same small library, so a prompt is just a folder you can read yourself.</p>
+    </div>
+    <pre class="code" tabindex="0" aria-label="What is in the store"><span class="c"># Personal prompts, private to your user</span>
+~/.parked-prompts/
+  20261105-160520-a1b2c3/
+    prompt.md            <span class="c"># Frontmatter, then the prompt as you wrote it</span>
+    attachments/
+      login-error.png    <span class="c"># Images and outside files are copied in</span>
+
+<span class="c"># Shared prompts, committed by you</span>
+your-repo/.github/parked-prompts/
+  20261105-160520-a1b2c3/
+    prompt.md</pre>
+  </div>
+</section>
+
+<section class="section alt" id="evidence">
+  <div class="wrap">
+    <div class="section-head">
+      <p class="eyebrow">How we know</p>
+      <h2>Run on real builds, not guessed from docs.</h2>
+      <p>These chat commands are internal to VS Code, so every assumption was tested against the real product before anything was built on it, and a harness re-checks them on new builds.</p>
+    </div>
+    <p><a class="btn line" href="https://github.com/jamesmontemagno/parked-prompts/blob/main/docs/spike-results.md">Read the test results</a></p>
+  </div>
+</section>
+
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <div><a class="brand" href="../"><img src="../assets/img/logo.svg" alt="" width="30" height="30">Parked Prompts</a><p>Open source, under the MIT license.</p></div>
+    <ul class="footer-links">
+      <li><a href="../integrations/">Integrations</a></li>
+      <li><a href="../docs/">Docs</a></li>
+      <li><a href="../security/">Security</a></li>
+      <li><a href="https://github.com/jamesmontemagno/parked-prompts">GitHub</a></li>
+      <li><a href="https://github.com/jamesmontemagno/parked-prompts/issues">Report an issue</a></li>
+    </ul>
+  </div>
+</footer>
+</body>
+</html>

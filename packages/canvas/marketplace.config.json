@@ -1,0 +1,11 @@
+{
+  "name": "parked-prompts",
+  "owner": {
+    "name": "jamesmontemagno"
+  },
+  "repository": "jamesmontemagno/parked-prompts",
+  "publishBranch": "stable",
+  "sourceBranch": "main",
+  "installCommand": "pnpm install --frozen-lockfile",
+  "checkCommand": "pnpm check && pnpm e2e"
+}

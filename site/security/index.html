@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self'; style-src 'self'; font-src 'self'; script-src 'self'; base-uri 'none'; form-action 'none'">
+<title>Security: Parked Prompts</title>
+<meta name="description" content="How Parked Prompts keeps saved prompts from sending themselves, and treats prompts that arrive by Git as untrusted.">
+<link rel="canonical" href="https://jamesmontemagno.github.io/parked-prompts/security/">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/site.css">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Security: Parked Prompts">
+<meta property="og:description" content="How Parked Prompts keeps saved prompts from sending themselves, and treats prompts that arrive by Git as untrusted.">
+<meta property="og:url" content="https://jamesmontemagno.github.io/parked-prompts/security/">
+<meta property="og:image" content="https://jamesmontemagno.github.io/parked-prompts/assets/img/social.png">
+<meta name="twitter:card" content="summary_large_image">
+<script src="../assets/site.js" defer></script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="wrap">
+    <a class="brand" href="../"><img src="../assets/img/logo.svg" alt="" width="30" height="30">Parked Prompts</a>
+    <nav class="site-nav" aria-label="Main">
+      <a href="../integrations/">Integrations</a>
+      <a href="../docs/">Docs</a>
+      <a href="../security/" aria-current="page">Security</a>
+      <a href="https://github.com/jamesmontemagno/parked-prompts">GitHub</a>
+      <a class="nav-install" href="../#install">Install</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+<section class="page-head">
+  <div class="wrap">
+    <h1>A prompt is an instruction. So it gets treated like one.</h1>
+    <p class="lede">How Parked Prompts keeps prompts from sending themselves, and why prompts from Git have to be read first.</p>
+  </div>
+</section>
+<div class="wrap doc">
+  <nav class="toc" aria-label="On this page">
+    <a href="#why">Why it matters</a><a href="#send">Nothing sends itself</a><a href="#git">Prompts from Git</a><a href="#files">Files and paths</a><a href="#pages">The sidebar and canvas</a><a href="#disk">What's on disk</a><a href="#releases">How it's released</a><a href="#report">Report a problem</a>
+  </nav>
+  <div class="prose">
+    <h2 id="why">Why it matters</h2>
+    <p>A prompt tells an AI agent what to do, and agents can edit files and run commands. So a saved prompt deserves the care you'd give a script, especially one that came from someone else.</p>
+
+    <h2 id="send">Nothing sends itself</h2>
+    <ul>
+      <li><strong>Restoring only fills the input.</strong> The commands it calls have flags that decide this, and in the Agents window leaving the flag out would send. Tests pin down the exact arguments.</li>
+      <li><strong>The agent can't send.</strong> In the canvas, every action that sends or arms a prompt is only available to the page, not offered to the agent as a tool. It can save a draft, which you then review.</li>
+      <li><strong>Marking a prompt done cancels it.</strong> Anything armed is checked again at the moment it would send: still parked, still confirmed, and still there.</li>
+      <li><strong>A prompt sends once.</strong> If saving its status fails after it has gone, it's reported instead of being sent again.</li>
+    </ul>
+
+    <h2 id="git">Prompts from Git</h2>
+    <p>Anyone with commit access can add a file to <code>.github/parked-prompts/</code>, and it would instruct your agent. So these are treated as untrusted:</p>
+    <ul>
+      <li><strong>You read it first.</strong> It opens read-only, and needs a yes before it can be restored, sent, armed, or run in a worktree.</li>
+      <li><strong>Hidden characters are shown.</strong> Zero-width, bidirectional, and tag characters can hide instructions from you while a model still reads them, so the preview marks them, as in <code>[U+200B]</code>.</li>
+      <li><strong>A yes covers that exact content:</strong> the text, the attachments' bytes, and the files it refers to. If a pull changes any of them, it asks again, even if the prompt was already armed.</li>
+      <li><strong>Your yes is stored outside the repository,</strong> in your home folder, so a pull can't approve itself.</li>
+      <li><strong>Untrusted workspaces hide them entirely</strong> in the editor, and the worktree and move actions are off.</li>
+    </ul>
+    <figure class="shot"><img src="../assets/shots/review.webp" width="1800" height="1046" loading="lazy" alt="A read-only preview of a prompt from the repository, behind a dialog asking whether to use it."><figcaption class="real">Review, before a prompt from the repository can be used.</figcaption></figure>
+
+    <h2 id="files">Files and paths</h2>
+    <ul>
+      <li><strong>Attachments can't leave their folder.</strong> <code>..</code>, absolute paths, and symlinks pointing out are blocked, and a blocked one is reported rather than attached.</li>
+      <li><strong>The repo store can't be a symlink.</strong> A repository controls its own <code>.github</code> folder, so a link there could send reads and writes anywhere. Those prompts aren't used.</li>
+      <li><strong>Finding the repository doesn't run Git.</strong> It reads the files instead, because a repository's config can make Git run commands. Git only runs for a worktree, in a trusted workspace, after you confirm.</li>
+      <li><strong>Credentials are stripped from remotes,</strong> so a token in a clone URL is never saved.</li>
+    </ul>
+
+    <h2 id="pages">The sidebar and canvas</h2>
+    <ul>
+      <li><strong>Prompt text can't become markup.</strong> It's only ever inserted as text, under a strict Content-Security-Policy, and tests try to inject script through it.</li>
+      <li><strong>The canvas listens on 127.0.0.1 only,</strong> with a token for each launch, because it serves your private screenshots. The page asks for images by ID and never names a path.</li>
+    </ul>
+
+    <h2 id="disk">What's on disk</h2>
+    <p>Personal prompts are in <code>~/.parked-prompts</code>, private to your user on macOS and Linux. They aren't encrypted, so other software running as you can read them, like most files in your home folder. Nothing is sent anywhere until you send it, and this website collects nothing about you: it has no analytics or cookies.</p>
+    <p class="callout">When moving a prompt to a repository, the secret check is a helpful net, not a guarantee. Read what you commit.</p>
+
+    <h2 id="releases">How it's released</h2>
+    <p>Each release is built and tested in GitHub Actions, and a person approves it. It's published with Trusted Publishing, so there's no long-lived Marketplace token that could leak: each run gets a credential that lasts 15 minutes. Every package is checked against an exact list of files before it goes out.</p>
+
+    <h2 id="report">Report a problem</h2>
+    <p>Please use <a href="https://github.com/jamesmontemagno/parked-prompts/security/advisories/new">private vulnerability reporting</a> rather than a public issue.</p>
+  </div>
+</div>
+
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <div><a class="brand" href="../"><img src="../assets/img/logo.svg" alt="" width="30" height="30">Parked Prompts</a><p>Open source, under the MIT license.</p></div>
+    <ul class="footer-links">
+      <li><a href="../integrations/">Integrations</a></li>
+      <li><a href="../docs/">Docs</a></li>
+      <li><a href="../security/">Security</a></li>
+      <li><a href="https://github.com/jamesmontemagno/parked-prompts">GitHub</a></li>
+      <li><a href="https://github.com/jamesmontemagno/parked-prompts/issues">Report an issue</a></li>
+    </ul>
+  </div>
+</footer>
+</body>
+</html>

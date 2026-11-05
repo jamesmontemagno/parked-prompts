@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self'; style-src 'self'; font-src 'self'; script-src 'self'; base-uri 'none'; form-action 'none'">
+<title>Docs: Parked Prompts</title>
+<meta name="description" content="How to install and use Parked Prompts: park, restore, worktrees, the canvas, sharing, commands, settings, and limits.">
+<link rel="canonical" href="https://jamesmontemagno.github.io/parked-prompts/docs/">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/site.css">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Docs: Parked Prompts">
+<meta property="og:description" content="How to install and use Parked Prompts: park, restore, worktrees, the canvas, sharing, commands, settings, and limits.">
+<meta property="og:url" content="https://jamesmontemagno.github.io/parked-prompts/docs/">
+<meta property="og:image" content="https://jamesmontemagno.github.io/parked-prompts/assets/img/social.png">
+<meta name="twitter:card" content="summary_large_image">
+<script src="../assets/site.js" defer></script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="wrap">
+    <a class="brand" href="../"><img src="../assets/img/logo.svg" alt="" width="30" height="30">Parked Prompts</a>
+    <nav class="site-nav" aria-label="Main">
+      <a href="../integrations/">Integrations</a>
+      <a href="../docs/" aria-current="page">Docs</a>
+      <a href="../security/">Security</a>
+      <a href="https://github.com/jamesmontemagno/parked-prompts">GitHub</a>
+      <a class="nav-install" href="../#install">Install</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+<section class="page-head">
+  <div class="wrap">
+    <h1>Docs</h1>
+    <p class="lede">Everything about parking, restoring, and sharing prompts, in one page.</p>
+  </div>
+</section>
+<div class="wrap doc">
+  <nav class="toc" aria-label="On this page">
+    <a href="#install">Install</a><a href="#park">Park a prompt</a><a href="#restore">Restore it</a><a href="#worktree">Run in a worktree</a><a href="#canvas">Use the canvas</a><a href="#share">Share with your team</a><a href="#store">Where prompts live</a><a href="#commands">Commands</a><a href="#settings">Settings</a><a href="#limits">Limits</a>
+  </nav>
+  <div class="prose">
+    <h2 id="install">Install</h2>
+    <p>The extension needs VS Code 1.105 or later. Install it from the Marketplace:</p>
+    <div class="copy"><code>code --install-extension vs-publisher-473885.parked-prompts</code><button type="button">Copy</button></div>
+    <p>Or download the <code>.vsix</code> from <a href="https://github.com/jamesmontemagno/parked-prompts/releases">Releases</a> and run <strong>Extensions: Install from VSIX</strong>.</p>
+    <p>The canvas is a separate Copilot plugin:</p>
+    <div class="copy"><code>copilot plugin marketplace add jamesmontemagno/parked-prompts#stable
+copilot plugin install parked-prompts@parked-prompts</code><button type="button">Copy</button></div>
+    <p>Reload VS Code, start a new chat, and ask your agent to open the parked prompts canvas.</p>
+
+    <h2 id="park">Park a prompt</h2>
+    <p>Open <strong>Parked Prompts</strong> in the activity bar and write. It saves a draft as you type, so closing the window loses nothing. Paste images, attach files, and press <strong>Park</strong>, or <kbd>Ctrl</kbd>+<kbd>Enter</kbd>.</p>
+    <figure class="shot shot-narrow"><img src="../assets/shots/composer.webp" width="608" height="680" loading="lazy" alt="The composer in the sidebar, with typed text and a pasted image attached."><figcaption class="real">The composer, with a pasted image.</figcaption></figure>
+    <p>There are quicker ways from the editor:</p>
+    <div class="table-wrap"><table>
+      <thead><tr><th scope="col">To park</th><th scope="col">Use</th></tr></thead>
+      <tbody>
+        <tr><td>What you typed in chat</td><td><kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>P</kbd>, or <kbd>Cmd</kbd>+<kbd>Alt</kbd>+<kbd>P</kbd> on a Mac, in the chat input. Text only, because of <a href="#limits">a VS Code limit</a></td></tr>
+        <tr><td>A selection</td><td><strong>Park Selection</strong> in the editor's context menu</td></tr>
+        <tr><td>A file</td><td><strong>Park Prompt with This File</strong> in the Explorer's context menu</td></tr>
+      </tbody>
+    </table></div>
+
+    <h2 id="restore">Restore it</h2>
+    <p>Press <strong>Restore</strong>. The prompt goes into a new chat with its attachments, and <strong>is never sent</strong>. You read it and press send yourself.</p>
+    <p>Restoring keeps the prompt, because an extension can't see whether you sent it. Press <strong>Mark as Done</strong> on the notification, or use the <strong>…</strong> menu, when you're finished.</p>
+    <p>To use the current chat instead, set <code>parkedPrompts.restoreTarget</code> to <code>currentChat</code>, or choose <strong>Restore to the current chat</strong> from the menu. It warns before replacing text you've typed.</p>
+
+    <h2 id="worktree">Run in a worktree</h2>
+    <p>From the <strong>…</strong> menu, choose <strong>Run in a worktree…</strong>. Confirm the branch and folder, and a new window opens on the worktree with the prompt in a new chat, unsent. An existing branch is checked out, and a new one starts from your current commit.</p>
+    <p>Your first checkout isn't touched, and worktrees are never deleted for you. Use <code>git worktree remove</code> when you're done with one.</p>
+
+    <h2 id="canvas">Use the canvas</h2>
+    <div class="table-wrap"><table>
+      <thead><tr><th scope="col">Action</th><th scope="col">What happens</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Send</strong></td><td>Sends to this session now, steering the current turn if there is one</td></tr>
+        <tr><td><strong>Queue</strong></td><td>Sends after the current turn</td></tr>
+        <tr><td><strong>When idle</strong></td><td>Sends once the agent goes idle, one prompt at a time, while the canvas stays open</td></tr>
+      </tbody>
+    </table></div>
+    <p>Sending marks a prompt done, because here the send can be seen to work. Your agent can list and read prompts, and save new drafts, but only you can send or arm one.</p>
+
+    <h2 id="share">Share with your team</h2>
+    <p><strong>Move to repository…</strong> puts a prompt in <code>.github/parked-prompts/</code> for you to commit. First it lists exactly which files will be added, and warns about screenshots and anything that looks like a secret. It removes your local path, and never commits for you.</p>
+    <p>Teammates who pull it see <strong>Review</strong> instead of <strong>Restore</strong>, and read it before they can use it. See <a href="../security/">Security</a>.</p>
+    <p class="callout">The secret check is a helpful net, not a guarantee. Read what you commit.</p>
+
+    <h2 id="store">Where prompts live</h2>
+    <div class="table-wrap"><table>
+      <thead><tr><th scope="col">Store</th><th scope="col">Location</th><th scope="col">Notes</th></tr></thead>
+      <tbody>
+        <tr><td>Personal</td><td><code>~/.parked-prompts/&lt;id&gt;/</code></td><td>Private to your user. <code>PARKED_PROMPTS_HOME</code> overrides it</td></tr>
+        <tr><td>Repository</td><td><code>.github/parked-prompts/&lt;id&gt;/</code></td><td>Opt-in per prompt, and committed by you</td></tr>
+      </tbody>
+    </table></div>
+    <p>Each entry is a <code>prompt.md</code> you can read and edit, plus an <code>attachments/</code> folder:</p>
+    <pre class="code" tabindex="0" aria-label="An example prompt file">---
+schema: 1
+title: Add rate limiting to login
+createdAt: 2026-11-05T16:52:00.000Z
+updatedAt: 2026-11-05T16:52:00.000Z
+status: parked
+repo:
+  remote: github.com/contoso/checkout-api
+  path: /work/checkout-api
+attachments:
+  - { kind: workspace, path: src/auth/login.ts, range: { startLine: 4, endLine: 10 } }
+  - { kind: copy, path: attachments/login-error.png, name: login-error.png, mime: image/png, size: 4120, sha256: "…" }
+---
+
+Add a token bucket rate limiter to the login endpoint.</pre>
+    <ul>
+      <li><strong>Images and files outside the workspace are copied in.</strong> Other workspace files stay references, so restoring attaches their current version. A missing one is flagged.</li>
+      <li><strong>Prompts follow the repository, not the folder.</strong> They match by Git remote first, so they survive re-clones and worktrees. Remotes are stored without credentials.</li>
+      <li><strong>Size limits:</strong> 25 MB per attachment, 100 MB per prompt, and 50 attachments.</li>
+    </ul>
+
+    <h2 id="commands">Commands</h2>
+    <p>All are in the Command Palette, under <strong>Parked Prompts</strong>.</p>
+    <div class="table-wrap"><table>
+      <thead><tr><th scope="col">Command</th><th scope="col">What it does</th></tr></thead>
+      <tbody>
+        <tr><td>Park a New Prompt</td><td>Opens the composer, or an input box in the Agents window</td></tr>
+        <tr><td>Park What I Typed in Chat</td><td>Saves the chat input's text</td></tr>
+        <tr><td>Park Selection</td><td>Starts a prompt from the selected lines</td></tr>
+        <tr><td>Park Prompt with This File</td><td>Starts a prompt from a file</td></tr>
+        <tr><td>Restore a Parked Prompt</td><td>Fills a new chat, unless the setting says otherwise</td></tr>
+        <tr><td>Restore a Parked Prompt to the Current Chat</td><td>Fills the current chat, after a warning</td></tr>
+        <tr><td>Mark a Parked Prompt as Done</td><td>Moves it to Done</td></tr>
+        <tr><td>Reopen a Done Prompt</td><td>Moves it back to Parked</td></tr>
+        <tr><td>Delete a Parked Prompt</td><td>Removes it and its attachments, after asking</td></tr>
+        <tr><td>Run a Parked Prompt in a Worktree</td><td>Creates a worktree and opens it, in a trusted workspace</td></tr>
+        <tr><td>Move a Parked Prompt to the Repository</td><td>Adds it to <code>.github/parked-prompts/</code>, in a trusted workspace</td></tr>
+        <tr><td>Open the Parked Prompts Folder</td><td>Shows the personal store</td></tr>
+        <tr><td>Refresh</td><td>Reads the store and the repository again</td></tr>
+      </tbody>
+    </table></div>
+
+    <h2 id="settings">Settings</h2>
+    <div class="table-wrap"><table>
+      <thead><tr><th scope="col">Setting</th><th scope="col">Default</th><th scope="col">What it does</th></tr></thead>
+      <tbody>
+        <tr><td><code>parkedPrompts.restoreTarget</code></td><td><code>newChat</code></td><td>Where restoring puts a prompt: <code>newChat</code> or <code>currentChat</code></td></tr>
+        <tr><td><code>parkedPrompts.experimental.chatInputButton</code></td><td><code>false</code></td><td>Shows a Park button in the chat input. See the limits below</td></tr>
+      </tbody>
+    </table></div>
+
+    <h2 id="limits">Limits</h2>
+    <p>These come from what VS Code and Copilot allow today. <a href="https://github.com/jamesmontemagno/parked-prompts/blob/main/docs/spike-results.md">The test results</a> have the evidence for each.</p>
+    <ul>
+      <li><strong>Attachments already in the chat input can't be captured.</strong> VS Code has no API to read them, so "park what I typed" saves the text only. Add attachments in the composer.</li>
+      <li><strong>The Agents window has no sidebar views, and restoring there is text only.</strong> Files are listed by path in the text. Use the canvas there for real attachments.</li>
+      <li><strong>There's no working Park button in the chat input yet.</strong> In Insiders 1.146 it appears, but clicking it does nothing, because of a VS Code issue that affects every extension. It's behind a setting for when that's fixed.</li>
+      <li><strong>Restoring uses VS Code's internal chat commands,</strong> which could change in any build. They all sit in one file, and a harness re-checks them.</li>
+      <li><strong>The canvas needs the Copilot harness.</strong> It doesn't work in Local, Claude, or Codex sessions.</li>
+      <li><strong>Send when idle only runs while the canvas stays open,</strong> and only in its own session. Reloading the window disarms it, which errs on the side of not sending.</li>
+      <li><strong>The editor can't offer send when idle,</strong> because stable APIs can't see whether chat is busy.</li>
+    </ul>
+  </div>
+</div>
+
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <div><a class="brand" href="../"><img src="../assets/img/logo.svg" alt="" width="30" height="30">Parked Prompts</a><p>Open source, under the MIT license.</p></div>
+    <ul class="footer-links">
+      <li><a href="../integrations/">Integrations</a></li>
+      <li><a href="../docs/">Docs</a></li>
+      <li><a href="../security/">Security</a></li>
+      <li><a href="https://github.com/jamesmontemagno/parked-prompts">GitHub</a></li>
+      <li><a href="https://github.com/jamesmontemagno/parked-prompts/issues">Report an issue</a></li>
+    </ul>
+  </div>
+</footer>
+</body>
+</html>

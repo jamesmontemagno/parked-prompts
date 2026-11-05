@@ -1,0 +1,16 @@
+{
+  "name": "phase0-spike",
+  "publisher": "parkedprompts",
+  "version": "0.0.1",
+  "license": "MIT",
+  "description": "Test harness for the Parked Prompts Phase 0 checks. Not for use outside testing.",
+  "repository": "jamesmontemagno/parked-prompts",
+  "engines": { "vscode": "^1.100.0" },
+  "main": "./extension.js",
+  "activationEvents": ["onStartupFinished"],
+  "capabilities": { "agentsWindow": { "supported": true } },
+  "contributes": {
+    "commands": [{ "command": "spike.park", "title": "Park", "icon": "$(archive)" }],
+    "menus": { "chat/input/status": [{ "command": "spike.park", "group": "navigation" }] }
+  }
+}

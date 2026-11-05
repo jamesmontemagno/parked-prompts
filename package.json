@@ -1,0 +1,29 @@
+{
+  "name": "parked-prompts-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Save chat prompts with their files and images for later, without sending them.",
+  "license": "MIT",
+  "type": "module",
+  "packageManager": "pnpm@11.28.8",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "oxlint",
+    "test": "pnpm -r test",
+    "check": "pnpm build && pnpm typecheck && pnpm lint && pnpm test && pnpm check:site",
+    "e2e": "pnpm --filter parked-prompts-canvas e2e",
+    "test:vscode": "pnpm --filter @parked-prompts/core build && pnpm --filter parked-prompts build && pnpm --filter parked-prompts test:vscode",
+    "package:vsix": "pnpm --filter @parked-prompts/core build && pnpm --filter parked-prompts package",
+    "verify:vsix": "pnpm --filter parked-prompts verify:vsix",
+    "check:site": "node tools/check-site.mjs",
+    "preview:site": "node tools/preview-site.mjs"
+  },
+  "devDependencies": {
+    "oxlint": "^1.81.0",
+    "typescript": "^7.0.2"
+  }
+}
