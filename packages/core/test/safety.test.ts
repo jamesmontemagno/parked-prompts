@@ -93,7 +93,7 @@ describe('pending restore', () => {
     const home = await tempDir();
     const worktree = await tempDir();
     await writePendingRestore(home, { ref, worktreePath: worktree });
-    const results = await Promise.all(Array.from({ length: 5 }, () => consumePendingRestore(home, worktree)));
+    const results = await Promise.all(Array.from({ length: 20 }, () => consumePendingRestore(home, worktree)));
     expect(results.filter(Boolean)).toHaveLength(1);
     expect(await readdir(join(home, '.pending'))).toEqual([]);
   });

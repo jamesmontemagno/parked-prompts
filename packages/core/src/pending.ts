@@ -1,7 +1,7 @@
-import { createHash, randomBytes } from 'node:crypto';
+import { createHash } from 'node:crypto';
 import { mkdir, readFile, realpath, unlink } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
-import { atomicWriteFile, rename } from './fsutil.ts';
+import { atomicWriteFile, pathExists, withLock } from './fsutil.ts';
 import { isValidId } from './paths.ts';
 import type { PromptRef } from './types.ts';
 
@@ -31,25 +31,24 @@ export async function writePendingRestore(home: string, pending: Omit<PendingRes
 }
 
 /**
- * Takes the marker for a folder, if there is one. The rename means only one window
- * can win, and the marker is gone before anything acts on it, so a prompt is restored
- * at most once. An old or malformed marker is thrown away.
+ * Takes the marker for a folder, if there is one. Windows take turns under a lock, so
+ * only the first finds it, and it is gone before anything acts on it: a prompt is
+ * restored at most once. A rename cannot do this, because concurrent renames of one
+ * file can both succeed on Windows. An old or malformed marker is thrown away.
  */
 export async function consumePendingRestore(home: string, worktreePath: string, now: Date = new Date()): Promise<PendingRestore | undefined> {
   const marker = await markerPath(home, worktreePath);
-  const claimed = `${marker}.${randomBytes(4).toString('hex')}.claimed`;
-  try {
-    await rename(marker, claimed);
-  } catch {
-    return undefined;
-  }
+  if (!(await pathExists(marker))) return undefined;
   let pending: PendingRestore;
   try {
-    pending = JSON.parse(await readFile(claimed, 'utf8')) as PendingRestore;
+    const text = await withLock(`${marker}.lock`, async () => {
+      const contents = await readFile(marker, 'utf8');
+      await unlink(marker);
+      return contents;
+    });
+    pending = JSON.parse(text) as PendingRestore;
   } catch {
     return undefined;
-  } finally {
-    await unlink(claimed).catch(() => undefined);
   }
   const age = now.getTime() - Date.parse(pending?.createdAt);
   const validRef = (pending?.ref?.store === 'global' || pending?.ref?.store === 'repo') && isValidId(String(pending?.ref?.id));
