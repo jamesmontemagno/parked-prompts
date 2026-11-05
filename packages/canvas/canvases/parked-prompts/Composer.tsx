@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ClipboardEvent, type ReactNode } from 'react'
 import { CanvasActionError, createCanvasHooks, getCanvasClient } from '@rwoll/canvas-kit/react'
+import { BookmarkIcon, CloseIcon, FileIcon, PaperclipIcon } from '../../ui'
 import type canvas from './canvas.ts'
 import { UPLOAD_CHUNK_BYTES, type PromptSummary } from './shared.ts'
 
@@ -33,12 +34,12 @@ function Attachments({ prompt, onRemove }: { prompt: PromptSummary; onRemove?: (
     <ul className="attachments" aria-label="Attachments">
       {prompt.attachments.map(item => (
         <li key={`${item.path}:${item.startLine ?? ''}`} className={item.missing && item.missing !== 'no-workspace' ? 'attachment missing' : 'attachment'}>
-          {item.fileId && <img src={imageUrl(item.fileId)} alt={item.label} />}
+          {item.fileId ? <img src={imageUrl(item.fileId)} alt={item.label} /> : <FileIcon />}
           <span className="attachment-label" title={item.label}>{item.label}</span>
           {item.missing === 'no-workspace' && <span className="muted"> (other workspace)</span>}
           {item.missing && item.missing !== 'no-workspace' && <span> ({item.missing === 'blocked' ? 'blocked' : 'missing'})</span>}
           {onRemove && (
-            <button type="button" className="link" aria-label={`Remove ${item.label}`} onClick={() => onRemove(item.path, item.startLine, item.endLine)}>Remove</button>
+            <button type="button" className="attachment-remove" aria-label={`Remove ${item.label}`} title="Remove" onClick={() => onRemove(item.path, item.startLine, item.endLine)}><CloseIcon /></button>
           )}
         </li>
       ))}
@@ -175,11 +176,12 @@ function Composer({ editing, onDoneEditing }: { editing: Draft | undefined; onDo
   const hasContent = draft.body.trim().length > 0 || (current?.attachments.length ?? 0) > 0
   return (
     <section className="block composer" aria-label="New prompt">
-      <input type="text" aria-label="Title" placeholder="Title (optional)" maxLength={200} value={draft.title} onChange={event => change({ title: event.target.value })} />
-      <textarea aria-label="Prompt text" placeholder="Write a prompt to save for later. Paste images, or attach files." rows={4} value={draft.body} onPaste={onPaste} onChange={event => change({ body: event.target.value })} />
+      <input type="text" className="composer-title" aria-label="Title" placeholder="Title (optional)" maxLength={200} value={draft.title} onChange={event => change({ title: event.target.value })} />
+      <textarea className="composer-body" aria-label="Prompt text" placeholder="Write a prompt to save for later. Paste images, or attach files." rows={3} value={draft.body} onPaste={onPaste} onChange={event => change({ body: event.target.value })} />
       {current && <Attachments prompt={current} onRemove={(path, startLine, endLine) => void enqueue(() => run('remove_attachment', { id: current.id, path, ...(startLine && endLine && { startLine, endLine }) }))} />}
-      <div className="button-row">
+      <div className="button-row composer-tools">
         <label className="file-button">
+          <PaperclipIcon />
           Attach files
           <input type="file" multiple aria-label="Attach files" onChange={event => { for (const file of event.target.files ?? []) void upload(file); event.target.value = '' }} />
         </label>
@@ -195,10 +197,11 @@ function Composer({ editing, onDoneEditing }: { editing: Draft | undefined; onDo
           <option value="ask">Ask</option>
           <option value="edit">Edit</option>
         </select>
-        <span className="spacer" />
-        <span className="notice" role="status">{note}</span>
-        {draft.id && draft.status === 'draft' && <button type="button" onClick={() => void discard()}>Discard</button>}
-        <button type="button" className="primary" disabled={!hasContent} onClick={() => void park()}>{draft.status === 'draft' ? 'Park' : 'Done editing'}</button>
+        <div className="composer-actions">
+          <span className="notice" role="status">{note}</span>
+          {draft.id && draft.status === 'draft' && <button type="button" onClick={() => void discard()}>Discard</button>}
+          <button type="button" className="primary" disabled={!hasContent} onClick={() => void park()}><BookmarkIcon />{draft.status === 'draft' ? 'Park' : 'Done editing'}</button>
+        </div>
       </div>
     </section>
   )
