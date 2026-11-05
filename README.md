@@ -4,7 +4,7 @@ Save chat prompts with their files and images for later, without sending them. B
 
 Other agents are often working in the same checkout, so a prompt you just thought of can't run yet. Parked Prompts keeps it safe, then restores it to chat, or runs it in a worktree straight away.
 
-**Status: pre-release.** The extension is tested on VS Code Insiders 1.146. Some canvas behaviour still needs a signed-in session to confirm. See [Phase 0 results](docs/spike-results.md).
+**Status: pre-release.** The extension has been driven end to end on VS Code Insiders 1.146, and its smoke tests also pass on stable. Some canvas behavior still needs a signed-in session to confirm. See [Phase 0 results](docs/spike-results.md).
 
 ## What's here
 

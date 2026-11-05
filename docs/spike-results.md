@@ -131,6 +131,10 @@ On Insiders 1.146 with the packaged VSIX:
 - **Worktree:** creates the branch and folder, opens a second window, and that window restores the prompt into a new chat, once. The first checkout stays on its branch
 - **Agents window:** the composer is prefilled with file paths listed, unsent, and a notice explains why
 
+## In CI
+
+Every pull request runs the unit tests on Linux, Windows, and macOS, the browser tests, and the smoke suite inside both Insiders and stable VS Code. The smoke suite passes on stable, so `engines.vscode` does not need to target Insiders.
+
 ## What is left for you to run
 
 These need a signed-in Copilot session, which this environment could not reach.
@@ -139,7 +143,7 @@ These need a signed-in Copilot session, which this environment could not reach.
 2. **F, live:** press **Send** on a prompt with an image and a file range. Check whether the agent receives them as attachments, as well as paths in the text.
 3. **Canvas in both windows:** open it in the editor's Chat and in the Agents window.
 4. **Pasting from the OS clipboard:** the tests paste through a synthetic event, so try a real screenshot in the extension and in the canvas.
-5. **macOS and Windows:** everything above ran on Linux. Check the `Cmd+Alt+P` binding, and paths on Windows.
+5. **macOS and Windows, by hand:** CI runs the unit tests on all three, but the end-to-end runs above were on Linux. Check the `Cmd+Alt+P` binding, and restoring on Windows.
 
 ## Notes for re-running
 
