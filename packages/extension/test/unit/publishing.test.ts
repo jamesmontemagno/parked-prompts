@@ -283,12 +283,25 @@ describe('canvas publishing', () => {
     expect(canvasWorkflow.on).toHaveProperty('workflow_dispatch');
   });
 
+  it('builds a baseline before stamping and checks the final canvas', () => {
+    const config = JSON.parse(readFileSync(join(REPO, 'packages/canvas/marketplace.config.json'), 'utf8')) as {
+      checkCommand: string;
+    };
+    expect(config.checkCommand).toBe([
+      'node ../../tools/prepare-canvas-release.mjs --baseline',
+      'pnpm build',
+      'node ../../tools/prepare-canvas-release.mjs --stamp',
+      'pnpm check',
+      'pnpm e2e',
+    ].join(' && '));
+  });
+
   it('indexes the published plugin on the default branch without duplicating its bundle', () => {
     const config = JSON.parse(readFileSync(join(REPO, 'packages/canvas/marketplace.config.json'), 'utf8')) as {
       name: string; owner: { name: string }; repository: string; publishBranch: string;
     };
     const canvas = JSON.parse(readFileSync(join(REPO, 'packages/canvas/package.json'), 'utf8')) as {
-      version: string; description: string;
+      description: string;
     };
     const catalog = JSON.parse(readFileSync(join(REPO, '.github/plugin/marketplace.json'), 'utf8')) as unknown;
     expect(catalog).toEqual({
@@ -297,7 +310,6 @@ describe('canvas publishing', () => {
       plugins: [{
         name: config.name,
         description: canvas.description,
-        version: canvas.version,
         source: {
           source: 'github',
           repo: config.repository,

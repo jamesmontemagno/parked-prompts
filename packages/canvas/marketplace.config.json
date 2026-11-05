@@ -7,5 +7,5 @@
   "publishBranch": "stable",
   "sourceBranch": "main",
   "installCommand": "pnpm install --frozen-lockfile",
-  "checkCommand": "pnpm check && pnpm e2e"
+  "checkCommand": "node ../../tools/prepare-canvas-release.mjs --baseline && pnpm build && node ../../tools/prepare-canvas-release.mjs --stamp && pnpm check && pnpm e2e"
 }

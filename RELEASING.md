@@ -111,7 +111,9 @@ Every push to `main` checks whether the plugin needs publishing. The workflow bu
 
 Do not add a path filter: canvas-kit skips a run if its commit is behind `main`. A newer push must start a replacement run even if it changes only documentation; otherwise `stable` can remain stale after a successful, skipped run. To catch up manually, run **Publish canvas** on `main` in Actions.
 
-The [catalog on `main`](.github/plugin/marketplace.json) points to the built plugin on `stable`, so users can add `jamesmontemagno/parked-prompts` without choosing a branch. The generated catalog on `stable` still works for existing installs. The catalog's plugin metadata must match `packages/canvas/package.json` and `marketplace.config.json`; a publishing test checks this.
+The [catalog on `main`](.github/plugin/marketplace.json) points to the built plugin on `stable`, so users can add `jamesmontemagno/parked-prompts` without choosing a branch. It leaves out the plugin version because the catalog is static while the published version changes. The generated catalog on `stable` includes the current version and still works for existing installs.
+
+The workflow automatically increments the patch version (for example, `0.1.0` to `0.1.1`) when files under `packages/canvas/` have changed since the last canvas release, or when the generated marketplace changes (for example, after a core change). It first builds with the last published version to compare the output, excluding the release stamp, then builds and checks the final version. Unrelated pushes with unchanged output keep the published version. This happens in the workflow's clean build worktree; no version bump needs to be committed to `main`. The default version in `packages/canvas/package.json` is used only before the first publish.
 
 The plugin marketplace is separate from the VS Code Marketplace extension. In VS Code, use **Chat: Open Customizations** > **Browse** > **Configure Marketplaces** > **Add Marketplace** (or **Plugins** > **Browse Marketplace**), enter `jamesmontemagno/parked-prompts`, then install `parked-prompts`.
 
