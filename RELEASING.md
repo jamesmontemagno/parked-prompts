@@ -66,6 +66,15 @@ Each run then:
 
 Only the publishing jobs can request an OIDC token. They run no build or tests, install with no scripts and no cache, and run `vsce` and `ovsx` from the lockfile. Re-running a failed run is safe, because a version that already published is skipped.
 
+### After publishing
+
+Move the changelog entries under the new version, in a pull request:
+
+1. In [CHANGELOG.md](CHANGELOG.md), add `## 1.0.<run number> (YYYY-MM-DD)` just below `## Unreleased`, using the version the release published as.
+2. Move every line from **Unreleased** under it, and leave **Unreleased** empty.
+
+Only entries that merged before the release's tag belong under it. Check with `git log --oneline v1.0.<run number>`. Leave anything newer under **Unreleased**.
+
 ### If publishing fails
 
 The job does not fall back to a token, so the error is the real one.
