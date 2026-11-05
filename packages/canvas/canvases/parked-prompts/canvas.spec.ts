@@ -177,6 +177,7 @@ test('a repository prompt must be read first, and cannot inject markup', async (
   await expect(dialog).toBeHidden()
   await row.getByRole('button', { name: 'Queue' }).click()
   await expect.poll(() => agent.messages.length).toBe(1)
+  await expect(page.getByRole('heading', { name: 'Done (1)' })).toBeVisible()
 })
 
 test('moving to the repository shows exactly what will be added', async ({ openCanvas }) => {

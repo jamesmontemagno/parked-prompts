@@ -51,11 +51,10 @@ interface Draft {
   id?: string | undefined
   title: string
   body: string
-  mode: string
   status: 'draft' | 'parked' | 'done'
 }
 
-const emptyDraft = (): Draft => ({ title: '', body: '', mode: '', status: 'draft' })
+const emptyDraft = (): Draft => ({ title: '', body: '', status: 'draft' })
 
 function Composer({ editing, onDoneEditing }: { editing: Draft | undefined; onDoneEditing: () => void }) {
   const { state, run } = useCanvas()
@@ -83,9 +82,9 @@ function Composer({ editing, onDoneEditing }: { editing: Draft | undefined; onDo
   const saveNow = () =>
     enqueue(async () => {
       const started = generation.current
-      const { id, title, body, mode } = latest.current
+      const { id, title, body } = latest.current
       if (!id && !title.trim() && !body.trim()) return true
-      const fields = { title, body, mode }
+      const fields = { title, body }
       let saved
       try {
         saved = await run('save_prompt', { ...(id && { id }), ...fields })
@@ -123,9 +122,9 @@ function Composer({ editing, onDoneEditing }: { editing: Draft | undefined; onDo
   const park = async () => {
     clearTimeout(timer.current)
     if (!(await saveNow())) return
-    const { id, status, title, body, mode } = latest.current
+    const { id, status, title, body } = latest.current
     if (!id) return
-    if (status === 'draft') await run('save_prompt', { id, title, body, mode, status: 'parked' })
+    if (status === 'draft') await run('save_prompt', { id, title, body, status: 'parked' })
     reset(status === 'draft' ? 'Parked' : 'Saved')
   }
 
@@ -191,12 +190,6 @@ function Composer({ editing, onDoneEditing }: { editing: Draft | undefined; onDo
             <button type="submit" disabled={!reference.trim()}>Add file</button>
           </form>
         )}
-        <select aria-label="Mode" value={draft.mode} onChange={event => change({ mode: event.target.value })}>
-          <option value="">Default mode</option>
-          <option value="agent">Agent</option>
-          <option value="ask">Ask</option>
-          <option value="edit">Edit</option>
-        </select>
         <div className="composer-actions">
           <span className="notice" role="status">{note}</span>
           {draft.id && draft.status === 'draft' && <button type="button" onClick={() => void discard()}>Discard</button>}
