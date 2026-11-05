@@ -132,7 +132,6 @@ export class ParkedViewProvider implements vscode.WebviewViewProvider, vscode.Di
       status: prompt.status,
       updatedAt: prompt.updatedAt,
       ...(repoLabel && { repoLabel }),
-      ...(prompt.mode && { mode: prompt.mode }),
       ...(prompt.model && { model: prompt.model }),
       needsConfirmation: await this.#service.catalog.trust.needsConfirmation(prompt),
       inCurrentRepo: prompt.store === 'repo' || matchRepo(prompt.repo, this.#service.repo) !== 'none',
@@ -159,16 +158,16 @@ export class ParkedViewProvider implements vscode.WebviewViewProvider, vscode.Di
     void view.webview.postMessage({ type: 'state', state } satisfies ToWebview);
   }
 
-  async #saveComposer(message: { id?: string; title: string; body: string; mode: string; model: string }): Promise<ParkedPrompt> {
+  async #saveComposer(message: { id?: string; title: string; body: string; model: string }): Promise<ParkedPrompt> {
     const store = this.#service.catalog.global;
-    const fields = { title: message.title, body: message.body, mode: message.mode, model: message.model };
+    const fields = { title: message.title, body: message.body, model: message.model };
     if (message.id) return store.update(message.id, fields);
     const repo = this.#service.newPromptRepo();
     return store.create({ ...fields, status: 'draft', ...(repo && { repo }) });
   }
 
   /** A draft this request created goes away if the attach fails, or the next autosave would make a second one. */
-  async #attachToComposer(message: { id?: string; title: string; body: string; mode: string; model: string }, attach: (prompt: ParkedPrompt) => Promise<ParkedPrompt>): Promise<ParkedPrompt> {
+  async #attachToComposer(message: { id?: string; title: string; body: string; model: string }, attach: (prompt: ParkedPrompt) => Promise<ParkedPrompt>): Promise<ParkedPrompt> {
     const prompt = await this.#saveComposer(message);
     try {
       return await attach(prompt);

@@ -133,6 +133,14 @@ describe('PromptStore', () => {
     expect(await readFile(join(created.dir, PROMPT_FILE), 'utf8')).not.toContain('mode:');
   });
 
+  it('preserves legacy mode metadata when unrelated prompt fields change', async () => {
+    const s = await store();
+    const created = await s.create({ body: 'x', mode: 'ask', model: 'm' });
+    const edited = await s.update(created.id, { body: 'updated' });
+    expect(edited).toMatchObject({ body: 'updated', mode: 'ask', model: 'm' });
+    expect(await readFile(join(created.dir, PROMPT_FILE), 'utf8')).toContain('mode: ask');
+  });
+
   it('makes global entries private to the user', async () => {
     if (process.platform === 'win32') return;
     const s = await store();

@@ -11,7 +11,7 @@ When another agent is mid-change in your checkout, starting a second one causes 
 ## What it does
 
 - **Park a prompt.** Write in the sidebar, paste a screenshot, and attach files. It saves as you type, and nothing goes to any model.
-- **Restore it, unsent.** It goes back into a new chat with its attachments. You read it and press send yourself.
+- **Restore it, unsent.** It goes back into a new chat with its attachments. Choose the agent and harness in VS Code, then read it and press send yourself.
 - **Run it in a worktree.** Start now, without touching the busy checkout: a new window opens on a new branch, with the prompt waiting.
 - **Keep them per repository.** Prompts match by Git remote, so they survive re-clones and worktrees.
 - **Share with your team.** Move a prompt to `.github/parked-prompts/` to commit it. It lists exactly what will be added, and warns about screenshots and secrets.

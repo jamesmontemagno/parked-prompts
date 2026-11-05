@@ -73,6 +73,12 @@ describe('the composer', () => {
     expect(await invoke('load_prompt', { store: 'global', id: prompt.id })).toMatchObject({ body: 'Edit me', status: 'parked' })
   })
 
+  it('preserves legacy mode and model metadata when saving an edit', async () => {
+    const prompt = await t.catalog.global.create({ body: 'Old text', mode: 'ask', model: 'saved-model' })
+    await invoke('save_prompt', { id: prompt.id, title: 'Edited', body: 'New text' })
+    expect(await t.catalog.global.get(prompt.id)).toMatchObject({ body: 'New text', mode: 'ask', model: 'saved-model' })
+  })
+
   it('refers to repository files by path, and refuses paths that leave it', async () => {
     const { id } = await invoke<{ id: string }>('add_workspace_file', { reference: 'src/a.ts:2-4' })
     expect((await t.catalog.global.get(id)).attachments).toEqual([{ kind: 'workspace', path: 'src/a.ts', range: { startLine: 2, endLine: 4 } }])

@@ -210,12 +210,12 @@ export default defineCanvas({
         id: z.string().optional(),
         title: z.string().max(200),
         body: z.string().max(1_000_000),
-        mode: z.string().max(40).default(''),
+        mode: z.string().max(40).optional(),
         status: z.enum(['draft', 'parked']).optional(),
       }),
       run: async (ctx, { id, title, body, mode, status }) => {
         const draft = await ensureDraft(ctx, id)
-        const saved = await catalogFor(ctx.state.repo).global.update(draft.id, { title, body, mode, ...(status && { status }) })
+        const saved = await catalogFor(ctx.state.repo).global.update(draft.id, { title, body, ...(mode !== undefined && { mode }), ...(status && { status }) })
         await syncFromStore(ctx)
         return { id: saved.id, updatedAt: saved.updatedAt }
       },
