@@ -95,7 +95,7 @@ await runCanvasExtension(canvases, {
 	releaseFile: new URL("../../release.json", import.meta.url),
 	plugin: {
 		"name": "parked-prompts",
-		"version": "0.1.0"
+		"version": "0.1.1"
 	}
 });
 export {};
