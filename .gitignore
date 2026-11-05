@@ -1,0 +1,11 @@
+node_modules
+dist
+out
+*.local
+*.log
+*.vsix
+.DS_Store
+.vscode-test
+test-results
+playwright-report
+coverage
