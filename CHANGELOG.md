@@ -4,7 +4,7 @@ Newest first. Each pull request adds a line under **Unreleased**. After an exten
 
 ## Unreleased
 
-- **Canvas:** publishing now increments the patch version when canvas files or the generated marketplace change, without bumping it for unrelated pushes.
+- **Canvas:** publishing now increments the patch version when canvas files or the generated marketplace change, without bumping it for unrelated pushes. ([#10](https://github.com/jamesmontemagno/parked-prompts/pull/10))
 - **Changelog:** every pull request now adds an entry here, and each release moves them under its version.
 
 ## 1.0.3 (2026-11-05)
