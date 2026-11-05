@@ -34,7 +34,7 @@ const userData = join(scratch, 'user-data');
 mkdirSync(join(userData, 'User'), { recursive: true });
 writeFileSync(join(userData, 'User', 'settings.json'), JSON.stringify({ 'telemetry.telemetryLevel': 'off', 'update.mode': 'none', 'workbench.startupEditor': 'none', 'security.workspace.trust.enabled': false }));
 
-const launchArgs = [workspace, `--user-data-dir=${userData}`, `--extensions-dir=${join(scratch, 'extensions')}`, '--skip-welcome', '--disable-gpu', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'];
+const launchArgs = [workspace, `--user-data-dir=${userData}`, `--extensions-dir=${join(scratch, 'extensions')}`, '--skip-welcome', '--disable-gpu', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--disable-dev-shm-usage'];
 if (process.getuid?.() === 0) launchArgs.push('--no-sandbox');
 
 let failed = false;

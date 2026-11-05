@@ -33,7 +33,8 @@ describe('Parked Prompts in VS Code', () => {
 
   it('activates and registers every contributed command', async () => {
     const extension = vscode.extensions.getExtension(EXTENSION_ID);
-    const contributed = (extension?.packageJSON.contributes.commands as { command: string }[]).map(item => item.command);
+    assert.ok(extension);
+    const contributed = (extension.packageJSON.contributes.commands as { command: string }[]).map(item => item.command);
     assert.ok(contributed.length >= 10);
     const registered = new Set(await vscode.commands.getCommands(true));
     for (const command of contributed) assert.ok(registered.has(command), `${command} is registered`);

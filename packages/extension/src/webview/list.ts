@@ -44,6 +44,12 @@ function attachmentRow(prompt: PromptView): HTMLElement | undefined {
   );
 }
 
+/** The excerpt, without repeating a title that came from the same text. */
+const summaryOf = (prompt: PromptView): string => {
+  const title = prompt.title.replace(/…$/, '');
+  return prompt.excerpt.startsWith(title) ? prompt.excerpt.slice(title.length).trim() : prompt.excerpt;
+};
+
 function row(prompt: PromptView, state: ViewState): HTMLElement {
   const more: HTMLButtonElement = h('button', { class: 'icon-button', type: 'button', title: 'More actions', 'aria-label': `More actions for ${prompt.title}`, 'aria-haspopup': 'menu', onclick: () => showMenu(more, menuFor(prompt, state)) }, icon('more'));
   const restore = h(
@@ -60,7 +66,7 @@ function row(prompt: PromptView, state: ViewState): HTMLElement {
     'li',
     { class: `prompt status-${prompt.status}` },
     h('div', { class: 'prompt-head' }, h('span', { class: 'prompt-title', title: prompt.title }, prompt.title), ...badges),
-    prompt.excerpt && prompt.excerpt !== prompt.title ? h('p', { class: 'prompt-excerpt' }, prompt.excerpt) : null,
+    summaryOf(prompt) ? h('p', { class: 'prompt-excerpt' }, summaryOf(prompt)) : null,
     attachmentRow(prompt),
     h('div', { class: 'prompt-foot' }, h('span', { class: 'muted time' }, meta), h('span', { class: 'spacer' }), restore, more),
   );

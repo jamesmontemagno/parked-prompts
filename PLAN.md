@@ -1,5 +1,7 @@
 # Parked Prompts (working name): save chat prompts for later
 
+> **Status:** implemented. Phase 0 ran on real builds, and some results changed the design: see [docs/spike-results.md](docs/spike-results.md). This plan is kept as written, for the reasoning behind it. The canvas uses [canvas-kit](https://github.com/rwoll/canvas-kit) rather than the `james-hub` shape described in Phase 4.
+
 ## Problem and approach
 
 Prompts often can't run right away because other agents are working in the same codebase. They need to be saved with their files and images, without being sent, then restored later in the editor Chat view or the Agents window.

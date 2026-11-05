@@ -103,7 +103,7 @@ describe('restoring in the Agents window', () => {
   it('lists attachments by path, and says it could not attach them', async () => {
     const { host, calls } = fakeHost(agentsWindow);
     const result = await restoreToChat(host, { text: 'Do it', attachments: files }, 'newChat');
-    const { prompt } = calls[0]?.args[0] as { prompt: string };
+    const { prompt } = calls[0]!.args[0] as { prompt: string };
     expect(prompt).toContain('Do it\n\nAttached files:');
     expect(prompt).toContain('- /r/src/b.ts (lines 3-9)');
     expect(prompt).toContain('- /h/s.png');

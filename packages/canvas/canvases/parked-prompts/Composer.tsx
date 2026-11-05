@@ -58,17 +58,12 @@ const emptyDraft = (): Draft => ({ title: '', body: '', mode: '', status: 'draft
 
 function Composer({ editing, onDoneEditing }: { editing: Draft | undefined; onDoneEditing: () => void }) {
   const { state, run } = useCanvas()
-  const [draft, setDraft] = useState<Draft>(emptyDraft)
+  const [draft, setDraft] = useState<Draft>(() => editing ?? emptyDraft())
   const [note, setNote] = useState('')
   const [reference, setReference] = useState('')
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const queue = useRef<Promise<unknown>>(Promise.resolve())
   const latest = useRef(draft)
-  latest.current = draft
-
-  useEffect(() => {
-    if (editing) setDraft(editing)
-  }, [editing])
 
   // One at a time, so a slow first save cannot create two drafts.
   const enqueue = (task: () => Promise<void>) => {

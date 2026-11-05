@@ -20,6 +20,9 @@ function Row({ prompt, armed, onEdit, onReview, onMove }: { prompt: PromptSummar
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const ref = { store: prompt.store, id: prompt.id }
   const act = (task: () => Promise<unknown>) => () => void task().then(() => setError(''), (failure: Error) => setError(failure.message))
+  // The excerpt, without repeating a title that came from the same text.
+  const titleText = prompt.title.replace(/…$/, '')
+  const summary = prompt.excerpt.startsWith(titleText) ? prompt.excerpt.slice(titleText.length).trim() : prompt.excerpt
   const details = [state.scope === 'all' || !prompt.inCurrentRepo ? prompt.repoLabel : undefined, timeAgo(prompt.updatedAt)].filter(Boolean).join(' · ')
   return (
     <li className={`prompt status-${prompt.status}`}>
@@ -28,7 +31,7 @@ function Row({ prompt, armed, onEdit, onReview, onMove }: { prompt: PromptSummar
         {prompt.store === 'repo' && <span className="badge state-waiting" title="Stored in the repository. It arrived by Git, so read it before using it.">Repo</span>}
         {armed && <span className="badge state-running">Waiting for idle</span>}
       </div>
-      {prompt.excerpt && prompt.excerpt !== prompt.title && <p className="prompt-excerpt">{prompt.excerpt}</p>}
+      {summary && <p className="prompt-excerpt">{summary}</p>}
       <Attachments prompt={prompt} />
       {prompt.warnings.map(warning => <p key={warning} className="notice warn">{warning}</p>)}
       {error && <p role="alert" className="error">{error}</p>}
@@ -137,7 +140,7 @@ export default function App() {
         </div>
       </Header>
       <main className="page">
-        <Composer editing={editing} onDoneEditing={() => setEditing(undefined)} />
+        <Composer key={editing?.id ?? 'new'} editing={editing} onDoneEditing={() => setEditing(undefined)} />
         {state.armed.length > 0 && (
           <p className="banner callout" role="status">
             {state.armed.length === 1 ? `"${state.armed[0]?.title}" sends` : `${state.armed.length} prompts send, one at a time,`} when the agent is next idle. This only happens while this canvas stays open.

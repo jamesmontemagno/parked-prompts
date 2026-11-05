@@ -1,0 +1,24 @@
+# Publishes the canvas plugin to the stable branch on every push to main. The build
+# runs with a read-only token; only a small push job, running no project code, can write.
+name: Publish marketplace
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - packages/canvas/**
+      - packages/core/**
+      - pnpm-lock.yaml
+      - .github/workflows/publish.yml
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  publish:
+    permissions:
+      contents: write
+    uses: rwoll/mono-oss/.github/workflows/marketplace.yml@bb47cd07d5cbce8e494446687dd855c3ad27e5a7 # canvas-kit@0.3.0
+    with:
+      working-directory: packages/canvas
+      playwright: true
