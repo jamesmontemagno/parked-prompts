@@ -53,7 +53,7 @@ for (const [page, html] of sources) {
   if (!nameOf(page).startsWith('404') && !html.includes(`<link rel="canonical" href="${SITE_URL}`)) report(page, 'has no canonical link.');
 
   for (const [, url] of html.matchAll(/\s(?:href|src)="([^"]+)"/g)) {
-    if (/^(?:https?:|mailto:)/.test(url)) continue;
+    if (/^(?:https?:|mailto:|vscode:|vscode-insiders:)/.test(url)) continue;
     const { target, hash } = resolveTarget(page, html, url);
     if (!existsSync(target)) {
       report(page, `links to ${url}, which does not exist.`);
@@ -87,6 +87,19 @@ const extensionId = `${manifest.publisher}.${manifest.name}`;
 for (const [page, html] of sources) {
   for (const [, id] of html.matchAll(/(?:install-extension |itemName=)([\w.-]+)/g)) if (id !== extensionId) report(page, `installs ${id}, but the extension is ${extensionId}.`);
 }
+// The install buttons open this extension in both editors. GitHub removes vscode: links
+// from a README, so there they go through vscode.dev.
+const installLinks = ['vscode', 'vscode-insiders'].map(scheme => `${scheme}:extension/${extensionId}`);
+for (const [page, html] of sources) {
+  for (const [, url] of html.matchAll(/\shref="(vscode(?:-insiders)?:[^"]*)"/g)) if (!installLinks.includes(url)) report(page, `has an install button for ${url}, but the extension is ${extensionId}.`);
+}
+for (const page of [join(SITE, 'index.html'), docsPage]) {
+  for (const link of installLinks) if (!sources.get(page)?.includes(`href="${link}"`)) report(page, `has no install button for ${link}.`);
+}
+const readme = readFileSync(join(REPO, 'README.md'), 'utf8');
+for (const link of installLinks) if (!readme.includes(`](https://vscode.dev/redirect?url=${link})`)) report(null, `README.md has no install button for ${link}.`);
+for (const [, url] of readme.matchAll(/\]\(https:\/\/vscode\.dev\/redirect\?url=([^)]*)\)/g)) if (!installLinks.includes(url)) report(null, `README.md has an install button for ${url}, but the extension is ${extensionId}.`);
+if (/\]\(vscode(?:-insiders)?:/.test(readme)) report(null, 'README.md links straight to vscode:, which GitHub removes. Use https://vscode.dev/redirect?url=.');
 const engine = manifest.engines.vscode.replace(/^\^/, '').split('.').slice(0, 2).join('.');
 if (!docs.includes(`VS Code ${engine} or later`)) report(docsPage, `does not say it needs VS Code ${engine}.`);
 

@@ -4,6 +4,8 @@
 
 **[Website](https://jamesmontemagno.github.io/parked-prompts/)** · **[Docs](https://jamesmontemagno.github.io/parked-prompts/docs/)** · **[Marketplace](https://marketplace.visualstudio.com/items?itemName=vs-publisher-473885.parked-prompts)**
 
+[![Install in VS Code](https://img.shields.io/badge/VS_Code-Install-0098FF?style=flat-square&logo=visualstudiocode&logoColor=white)](https://vscode.dev/redirect?url=vscode:extension/vs-publisher-473885.parked-prompts) [![Install in VS Code Insiders](https://img.shields.io/badge/VS_Code_Insiders-Install-24bfa5?style=flat-square&logo=visualstudiocode&logoColor=white)](https://vscode.dev/redirect?url=vscode-insiders:extension/vs-publisher-473885.parked-prompts)
+
 Save chat prompts with their files and images for later, without sending them. Bring them back when the codebase is free.
 
 ![VS Code with a prompt restored into the chat input, with a file range and an image attached, and a notification that it has not been sent](packages/extension/media/screenshots/restored.png)
@@ -26,6 +28,10 @@ The extension and the canvas don't talk to each other. They read the same folder
 ## Install
 
 ### Editor extension
+
+[![Install in VS Code](https://img.shields.io/badge/VS_Code-Install-0098FF?style=flat-square&logo=visualstudiocode&logoColor=white)](https://vscode.dev/redirect?url=vscode:extension/vs-publisher-473885.parked-prompts) [![Install in VS Code Insiders](https://img.shields.io/badge/VS_Code_Insiders-Install-24bfa5?style=flat-square&logo=visualstudiocode&logoColor=white)](https://vscode.dev/redirect?url=vscode-insiders:extension/vs-publisher-473885.parked-prompts)
+
+The buttons open the extension in your editor, ready to install. Or use the command line, with `code-insiders` for Insiders:
 
 ```sh
 code --install-extension vs-publisher-473885.parked-prompts

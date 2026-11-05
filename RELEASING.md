@@ -85,6 +85,8 @@ To try a build on real users first, check **Publish to the pre-release channel**
 
 The manifest has `"preview": true`, so the listing shows a Preview badge. Remove it when the [remaining live checks](docs/spike-results.md#what-is-left-for-you-to-run) are done.
 
+The install buttons in the README and on the website do nothing until the extension is live, because VS Code can't find it yet.
+
 ### Publishing by hand
 
 `--oidc` only works inside GitHub Actions. To publish from your machine, build the package and upload it at the [publisher page](https://marketplace.visualstudio.com/manage):

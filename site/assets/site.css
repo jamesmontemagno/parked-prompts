@@ -90,7 +90,11 @@ p { margin: 0; }
 .btn.primary:hover { background: #2267ea; }
 .btn.line { border-color: currentColor; }
 .btn.line:hover { background: color-mix(in srgb, currentColor 12%, transparent); }
+.btn.insiders { background: #24bfa5; color: #06231e; }
+.btn.insiders:hover { background: #3dd0b7; }
 .actions { display: flex; flex-wrap: wrap; gap: 12px; }
+.actions-note { margin-top: 12px; font-size: 15px; opacity: .85; }
+.actions-note a { color: inherit; }
 
 /* Hero */
 .hero { position: relative; background: var(--asphalt); color: var(--paint); padding-block: clamp(36px, 5vw, 62px) 0; overflow: hidden; }
@@ -283,6 +287,8 @@ p { margin: 0; }
 .card { display: flex; flex-direction: column; gap: 12px; padding: 22px; border-radius: var(--radius); background: var(--surface); border: 1px solid var(--line); min-width: 0; }
 .card p { color: var(--muted); }
 .card .btn, .card .copy { margin-top: auto; }
+.card .actions { margin-top: auto; }
+.card .actions .btn { flex: 1 1 100%; margin-top: 0; }
 @media (max-width: 960px) { .cards { grid-template-columns: 1fr; } }
 
 /* Tables */
