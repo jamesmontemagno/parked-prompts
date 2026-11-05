@@ -10,4 +10,5 @@
 
 - [ ] Restoring still never sends, and only the user can send from the canvas
 - [ ] New behavior has tests
-- [ ] The README and `CHANGELOG.md` are up to date
+- [ ] The README is up to date
+- [ ] `CHANGELOG.md` has an entry for this pull request under `## Unreleased`

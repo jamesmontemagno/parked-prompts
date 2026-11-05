@@ -35,6 +35,21 @@ To work on the website, run `pnpm preview:site`. It serves `site/` under `/parke
 
 Write a failing test first when you fix a bug. Put new store behavior in core with a unit test, rather than in one of the surfaces.
 
+## Changelog
+
+Every pull request adds an entry to [CHANGELOG.md](CHANGELOG.md), under `## Unreleased` at the top:
+
+```md
+- **Area:** what changed, from the user's point of view. ([#12](https://github.com/jamesmontemagno/parked-prompts/pull/12))
+```
+
+- Use an area that already appears there where one fits, such as **Canvas**, **Editor extension**, **Website**, or **Releases**.
+- Use a full link to the pull request. GitHub does not turn `#12` into a link inside a file.
+- Changes with nothing to say to users, like CI or test tweaks, still get a short line under **Maintenance**.
+- Never add a version heading yourself. Versions are `1.0.<run number>`, so nobody knows the number until a release publishes. [RELEASING.md](RELEASING.md#after-publishing) covers moving the entries.
+
+[`packages/extension/CHANGELOG.md`](packages/extension/CHANGELOG.md) only links here, because it ships in the package and appears on the Marketplace. Don't add entries to it.
+
 ## Rules worth keeping
 
 These protect users, so please keep them true:

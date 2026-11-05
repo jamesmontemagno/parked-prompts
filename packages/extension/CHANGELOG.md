@@ -1,5 +1,3 @@
 # Changelog
 
-## 0.1.0
-
-First release.
+See the [full changelog](https://github.com/jamesmontemagno/parked-prompts/blob/main/CHANGELOG.md) on GitHub.
