@@ -1,0 +1,150 @@
+# Publishes the extension to the VS Code Marketplace, and to Open VSX when OVSX_PAT is set.
+#
+# Publish a GitHub Release, or use Actions > Publish > Run workflow. The version is set
+# for you as 1.0.<run number>. A release marked pre-release, or the prerelease input,
+# publishes to the Marketplace's pre-release channel.
+#
+# Three jobs keep the Marketplace token away from project code and its dependencies:
+# verify and package run them with a read-only token and no secrets. publish holds the
+# token, sits behind the marketplace environment for approval, and only runs vsce.
+name: Publish
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      prerelease:
+        description: Publish to the pre-release channel
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-extension
+  cancel-in-progress: false
+
+env:
+  RELEASE_VERSION: 1.0.${{ github.run_number }}
+  RELEASE_TAG: v1.0.${{ github.run_number }}
+  PRERELEASE: ${{ github.event.release.prerelease || inputs.prerelease || false }}
+
+jobs:
+  verify:
+    name: Test (${{ matrix.version }})
+    # A manual run only publishes the default branch. A release publishes its tag.
+    if: github.event_name == 'release' || github.ref_name == github.event.repository.default_branch
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      matrix:
+        version: [stable, insiders]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+      - run: pnpm install --frozen-lockfile
+      - name: Build, typecheck, lint, and unit tests
+        run: pnpm check
+      - name: Smoke tests inside VS Code
+        run: xvfb-run -a pnpm test:vscode
+        env:
+          VSCODE_VERSION: ${{ matrix.version }}
+
+  package:
+    name: Package
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+      - run: pnpm install --frozen-lockfile
+      - name: Set the version
+        working-directory: packages/extension
+        run: npm pkg set "version=$RELEASE_VERSION"
+      - name: Package the VSIX
+        run: pnpm package:vsix ${{ env.PRERELEASE == 'true' && '--pre-release' || '' }}
+      - name: Check the VSIX
+        working-directory: packages/extension
+        run: node scripts/verify-vsix.mts dist/parked-prompts.vsix --version "$RELEASE_VERSION" ${{ env.PRERELEASE == 'true' && '--pre-release' || '' }}
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: vsix
+          path: packages/extension/dist/parked-prompts.vsix
+          if-no-files-found: error
+
+  publish:
+    name: Publish
+    needs: package
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # Add required reviewers to this environment to approve each release: tools/setup-repo.sh does.
+    environment:
+      name: marketplace
+      url: https://marketplace.visualstudio.com/items?itemName=vs-publisher-473885.parked-prompts
+    permissions:
+      contents: write
+    env:
+      # Exact versions, with no install scripts: this job holds the publishing token.
+      VSCE: "@vscode/vsce@3.9.2"
+      OVSX: "ovsx@1.3.0"
+      npm_config_ignore_scripts: "true"
+      CHANNEL_FLAG: ${{ github.event.release.prerelease && '--pre-release' || inputs.prerelease && '--pre-release' || '' }}
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: vsix
+
+      - name: Check for the Marketplace token
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT || secrets.VSCE_TOKEN }}
+        run: |
+          if [ -z "$VSCE_PAT" ]; then
+            echo "::error::Add a VSCE_PAT repository secret. See RELEASING.md."
+            exit 1
+          fi
+
+      # --skip-duplicate lets a re-run finish the steps after a publish that already worked.
+      - name: Publish to the VS Code Marketplace
+        run: npx --yes "$VSCE" publish --packagePath parked-prompts.vsix --skip-duplicate $CHANNEL_FLAG
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT || secrets.VSCE_TOKEN }}
+
+      - name: Publish to Open VSX (optional)
+        env:
+          OVSX_PAT: ${{ secrets.OVSX_PAT }}
+        run: |
+          if [ -n "$OVSX_PAT" ]; then
+            npx --yes "$OVSX" publish --packagePath parked-prompts.vsix --skip-duplicate $CHANNEL_FLAG
+          else
+            echo "OVSX_PAT secret not set, so skipping Open VSX."
+          fi
+
+      - name: Create a GitHub Release (manual run)
+        if: github.event_name == 'workflow_dispatch'
+        uses: softprops/action-gh-release@8a0cd651e5b2365bd640854a3fa5dfc70e4875f3 # v3.0.4
+        with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          name: ${{ env.RELEASE_TAG }}
+          target_commitish: ${{ github.sha }}
+          generate_release_notes: true
+          prerelease: ${{ inputs.prerelease }}
+          files: parked-prompts.vsix
+
+      - name: Attach the VSIX to the GitHub Release
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@8a0cd651e5b2365bd640854a3fa5dfc70e4875f3 # v3.0.4
+        with:
+          files: parked-prompts.vsix

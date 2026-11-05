@@ -9,7 +9,7 @@ Please use [private vulnerability reporting](https://github.com/jamesmontemagno/
 Prompts instruct AI agents, and repository prompts arrive by Git, so anyone with commit access can write one. These are in scope:
 
 - A repository prompt being used without the user reading that exact version
-- A prompt or attachment reading files outside its folder, through `..`, an absolute path, or a symlink
+- A prompt or attachment reading or writing files outside its folder, through `..`, an absolute path, or a symlink
 - Markup or script in a prompt running in the sidebar or the canvas
 - The agent sending or arming a prompt by itself
 - Restoring sending a prompt

@@ -1,6 +1,12 @@
+<img src="packages/extension/media/icon.png" alt="" width="96" align="right">
+
 # Parked Prompts
 
+**[Website](https://jamesmontemagno.github.io/parked-prompts/)** · **[Docs](https://jamesmontemagno.github.io/parked-prompts/docs/)** · **[Marketplace](https://marketplace.visualstudio.com/items?itemName=vs-publisher-473885.parked-prompts)**
+
 Save chat prompts with their files and images for later, without sending them. Bring them back when the codebase is free.
+
+![VS Code with a prompt restored into the chat input, with a file range and an image attached, and a notification that it has not been sent](packages/extension/media/screenshots/restored.png)
 
 Other agents are often working in the same checkout, so a prompt you just thought of can't run yet. Parked Prompts keeps it safe, then restores it to chat, or runs it in a worktree straight away.
 
@@ -13,6 +19,7 @@ Other agents are often working in the same checkout, so a prompt you just though
 | **Editor extension** | Composer and list in the sidebar, restore to chat, run in a worktree, move to the repo | [`packages/extension`](packages/extension) |
 | **Canvas** | The same list inside a chat session, plus send, queue, and send when idle | [`packages/canvas`](packages/canvas) |
 | **Core** | The on-disk store they share | [`packages/core`](packages/core) |
+| **Website** | The landing page, docs, and security model | [`site`](site) |
 
 The extension and the canvas don't talk to each other. They read the same folder, so a prompt parked in one appears in the other.
 
@@ -20,12 +27,16 @@ The extension and the canvas don't talk to each other. They read the same folder
 
 ### Editor extension
 
-Marketplace publishing hasn't happened yet, so build a VSIX:
+```sh
+code --install-extension vs-publisher-473885.parked-prompts
+```
+
+Or build a VSIX from source:
 
 ```sh
 pnpm install
 pnpm package:vsix
-code-insiders --install-extension packages/extension/dist/parked-prompts.vsix
+code --install-extension packages/extension/dist/parked-prompts.vsix
 ```
 
 ### Canvas
@@ -46,6 +57,8 @@ copilot plugin install parked-prompts@parked-prompts
 ```
 
 Then ask your agent to open the parked prompts canvas.
+
+Releases are covered in [RELEASING.md](RELEASING.md).
 
 ## Using it
 
@@ -92,10 +105,10 @@ The agent can list and read prompts and save new drafts. It can't send or arm on
 Anyone with commit access can add a prompt to `.github/parked-prompts/`, and a prompt instructs your agent. So:
 
 - **You read it before it's used.** It opens read-only, with hidden characters made visible, and needs a yes before it can be restored, sent, or armed.
-- **A yes covers that exact content.** If a pull changes the text or an attachment, it asks again.
+- **A yes covers that exact content.** If a pull changes the text, an attachment, or a file it refers to, it asks again.
 - **It's never run automatically.**
 - **Untrusted workspaces hide these prompts entirely**, in the editor.
-- **Attachments can't reach outside.** A symlink pointing out of its folder is blocked, and so is any path with `..`.
+- **Attachments can't reach outside.** A symlink pointing out of its folder is blocked, and so is any path with `..`. A repo store that is itself a symlink is not used at all.
 
 ## Where prompts live
 
@@ -147,9 +160,10 @@ Needs Node.js 24 and pnpm. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ```sh
 pnpm install
-pnpm check      # build, typecheck, lint, unit tests
-pnpm e2e        # canvas browser tests
-pnpm test:vscode  # smoke tests inside real VS Code
+pnpm check         # build, typecheck, lint, unit tests, website check
+pnpm e2e           # canvas browser tests
+pnpm test:vscode   # smoke tests inside real VS Code
+pnpm preview:site  # the website, locally
 ```
 
 ## License

@@ -1,7 +1,9 @@
 import { copyFile, mkdir } from 'node:fs/promises';
 import { build, context } from 'esbuild';
 
-const shared = { bundle: true, sourcemap: true, logLevel: 'info', target: 'es2022', legalComments: 'none' };
+const watching = process.argv.includes('--watch');
+// Published builds are minified, and keep their source maps outside the package.
+const shared = { bundle: true, sourcemap: watching ? 'linked' : 'external', minify: !watching, logLevel: 'info', target: 'es2022', legalComments: 'none' };
 
 const configs = [
   {
@@ -11,7 +13,6 @@ const configs = [
     platform: 'node',
     format: 'cjs',
     external: ['vscode'],
-    // Core is ESM; `import.meta` is not used, so CommonJS output is safe.
   },
   {
     ...shared,
@@ -25,7 +26,7 @@ const configs = [
 await mkdir('dist', { recursive: true });
 await copyFile('src/webview/webview.css', 'dist/webview.css');
 
-if (process.argv.includes('--watch')) {
+if (watching) {
   for (const config of configs) await (await context(config)).watch();
 } else {
   await Promise.all(configs.map(config => build(config)));

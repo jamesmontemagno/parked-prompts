@@ -3,24 +3,48 @@
   "displayName": "Parked Prompts",
   "description": "Save chat prompts with their files and images for later, without sending them, then restore them to Chat when the codebase is free.",
   "version": "0.1.0",
-  "publisher": "jamesmontemagno",
+  "publisher": "vs-publisher-473885",
+  "preview": true,
   "license": "MIT",
   "private": true,
   "icon": "media/icon.png",
+  "galleryBanner": {
+    "color": "#15171b",
+    "theme": "dark"
+  },
+  "homepage": "https://jamesmontemagno.github.io/parked-prompts/",
   "repository": {
     "type": "git",
     "url": "https://github.com/jamesmontemagno/parked-prompts.git",
     "directory": "packages/extension"
   },
-  "bugs": "https://github.com/jamesmontemagno/parked-prompts/issues",
-  "categories": ["AI", "Chat", "Other"],
-  "keywords": ["chat", "copilot", "prompts", "stash", "agents", "worktree"],
+  "bugs": {
+    "url": "https://github.com/jamesmontemagno/parked-prompts/issues"
+  },
+  "categories": [
+    "AI",
+    "Chat",
+    "Other"
+  ],
+  "keywords": [
+    "chat",
+    "copilot",
+    "prompts",
+    "stash",
+    "agents",
+    "worktree"
+  ],
   "engines": {
     "vscode": "^1.105.0"
   },
-  "extensionKind": ["ui", "workspace"],
+  "extensionKind": [
+    "ui",
+    "workspace"
+  ],
   "main": "./dist/extension.cjs",
-  "activationEvents": ["onStartupFinished"],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
   "capabilities": {
     "agentsWindow": {
       "supported": true
@@ -34,54 +58,155 @@
   "contributes": {
     "viewsContainers": {
       "activitybar": [
-        { "id": "parkedPrompts", "title": "Parked Prompts", "icon": "media/activity.svg" }
+        {
+          "id": "parkedPrompts",
+          "title": "Parked Prompts",
+          "icon": "media/activity.svg"
+        }
       ]
     },
     "views": {
       "parkedPrompts": [
-        { "id": "parkedPrompts.view", "name": "Parked Prompts", "type": "webview", "icon": "media/activity.svg", "contextualTitle": "Parked Prompts" }
+        {
+          "id": "parkedPrompts.view",
+          "name": "Parked Prompts",
+          "type": "webview",
+          "icon": "media/activity.svg",
+          "contextualTitle": "Parked Prompts"
+        }
       ]
     },
     "commands": [
-      { "command": "parkedPrompts.new", "title": "Park a New Prompt", "category": "Parked Prompts", "icon": "$(add)" },
-      { "command": "parkedPrompts.parkTyped", "title": "Park What I Typed in Chat", "category": "Parked Prompts", "icon": "$(archive)" },
-      { "command": "parkedPrompts.parkSelection", "title": "Park Selection", "category": "Parked Prompts" },
-      { "command": "parkedPrompts.parkFile", "title": "Park Prompt with This File", "category": "Parked Prompts" },
-      { "command": "parkedPrompts.restore", "title": "Restore a Parked Prompt", "category": "Parked Prompts", "icon": "$(comment-discussion)" },
-      { "command": "parkedPrompts.restoreToCurrent", "title": "Restore a Parked Prompt to the Current Chat", "category": "Parked Prompts" },
-      { "command": "parkedPrompts.markDone", "title": "Mark a Parked Prompt as Done", "category": "Parked Prompts" },
-      { "command": "parkedPrompts.reopen", "title": "Reopen a Done Prompt", "category": "Parked Prompts" },
-      { "command": "parkedPrompts.delete", "title": "Delete a Parked Prompt", "category": "Parked Prompts" },
-      { "command": "parkedPrompts.runInWorktree", "title": "Run a Parked Prompt in a Worktree", "category": "Parked Prompts", "icon": "$(git-branch)", "enablement": "isWorkspaceTrusted" },
-      { "command": "parkedPrompts.moveToRepo", "title": "Move a Parked Prompt to the Repository", "category": "Parked Prompts", "enablement": "isWorkspaceTrusted" },
-      { "command": "parkedPrompts.openStore", "title": "Open the Parked Prompts Folder", "category": "Parked Prompts" },
-      { "command": "parkedPrompts.refresh", "title": "Refresh", "category": "Parked Prompts", "icon": "$(refresh)" }
+      {
+        "command": "parkedPrompts.new",
+        "title": "Park a New Prompt",
+        "category": "Parked Prompts",
+        "icon": "$(add)"
+      },
+      {
+        "command": "parkedPrompts.parkTyped",
+        "title": "Park What I Typed in Chat",
+        "category": "Parked Prompts",
+        "icon": "$(archive)"
+      },
+      {
+        "command": "parkedPrompts.parkSelection",
+        "title": "Park Selection",
+        "category": "Parked Prompts"
+      },
+      {
+        "command": "parkedPrompts.parkFile",
+        "title": "Park Prompt with This File",
+        "category": "Parked Prompts"
+      },
+      {
+        "command": "parkedPrompts.restore",
+        "title": "Restore a Parked Prompt",
+        "category": "Parked Prompts",
+        "icon": "$(comment-discussion)"
+      },
+      {
+        "command": "parkedPrompts.restoreToCurrent",
+        "title": "Restore a Parked Prompt to the Current Chat",
+        "category": "Parked Prompts"
+      },
+      {
+        "command": "parkedPrompts.markDone",
+        "title": "Mark a Parked Prompt as Done",
+        "category": "Parked Prompts"
+      },
+      {
+        "command": "parkedPrompts.reopen",
+        "title": "Reopen a Done Prompt",
+        "category": "Parked Prompts"
+      },
+      {
+        "command": "parkedPrompts.delete",
+        "title": "Delete a Parked Prompt",
+        "category": "Parked Prompts"
+      },
+      {
+        "command": "parkedPrompts.runInWorktree",
+        "title": "Run a Parked Prompt in a Worktree",
+        "category": "Parked Prompts",
+        "icon": "$(git-branch)",
+        "enablement": "isWorkspaceTrusted"
+      },
+      {
+        "command": "parkedPrompts.moveToRepo",
+        "title": "Move a Parked Prompt to the Repository",
+        "category": "Parked Prompts",
+        "enablement": "isWorkspaceTrusted"
+      },
+      {
+        "command": "parkedPrompts.openStore",
+        "title": "Open the Parked Prompts Folder",
+        "category": "Parked Prompts"
+      },
+      {
+        "command": "parkedPrompts.refresh",
+        "title": "Refresh",
+        "category": "Parked Prompts",
+        "icon": "$(refresh)"
+      }
     ],
     "menus": {
       "view/title": [
-        { "command": "parkedPrompts.new", "when": "view == parkedPrompts.view", "group": "navigation@1" },
-        { "command": "parkedPrompts.refresh", "when": "view == parkedPrompts.view", "group": "navigation@2" },
-        { "command": "parkedPrompts.openStore", "when": "view == parkedPrompts.view", "group": "overflow@1" }
+        {
+          "command": "parkedPrompts.new",
+          "when": "view == parkedPrompts.view",
+          "group": "navigation@1"
+        },
+        {
+          "command": "parkedPrompts.refresh",
+          "when": "view == parkedPrompts.view",
+          "group": "navigation@2"
+        },
+        {
+          "command": "parkedPrompts.openStore",
+          "when": "view == parkedPrompts.view",
+          "group": "overflow@1"
+        }
       ],
       "chat/input/status": [
-        { "command": "parkedPrompts.parkTyped", "when": "config.parkedPrompts.experimental.chatInputButton", "group": "navigation" }
+        {
+          "command": "parkedPrompts.parkTyped",
+          "when": "config.parkedPrompts.experimental.chatInputButton",
+          "group": "navigation"
+        }
       ],
       "editor/context": [
-        { "command": "parkedPrompts.parkSelection", "when": "editorHasSelection && resourceScheme != chatSessionInput", "group": "9_cutcopypaste@9" }
+        {
+          "command": "parkedPrompts.parkSelection",
+          "when": "editorHasSelection && resourceScheme != chatSessionInput",
+          "group": "9_cutcopypaste@9"
+        }
       ],
       "explorer/context": [
-        { "command": "parkedPrompts.parkFile", "when": "!explorerResourceIsFolder", "group": "7_modification@9" }
+        {
+          "command": "parkedPrompts.parkFile",
+          "when": "!explorerResourceIsFolder",
+          "group": "7_modification@9"
+        }
       ]
     },
     "keybindings": [
-      { "command": "parkedPrompts.parkTyped", "key": "ctrl+alt+p", "mac": "cmd+alt+p", "when": "inChatInput" }
+      {
+        "command": "parkedPrompts.parkTyped",
+        "key": "ctrl+alt+p",
+        "mac": "cmd+alt+p",
+        "when": "inChatInput"
+      }
     ],
     "configuration": {
       "title": "Parked Prompts",
       "properties": {
         "parkedPrompts.restoreTarget": {
           "type": "string",
-          "enum": ["newChat", "currentChat"],
+          "enum": [
+            "newChat",
+            "currentChat"
+          ],
           "enumDescriptions": [
             "Open a new chat, so nothing you have typed is replaced.",
             "Use the current chat. Text already in the input is replaced, after a warning."
@@ -103,7 +228,8 @@
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run",
     "test:vscode": "node test/run-vscode-tests.mjs",
-    "package": "pnpm build && vsce package --no-dependencies --out dist/parked-prompts.vsix"
+    "package": "pnpm build && vsce package --no-dependencies --baseContentUrl https://github.com/jamesmontemagno/parked-prompts/blob/HEAD/packages/extension --baseImagesUrl https://github.com/jamesmontemagno/parked-prompts/raw/HEAD/packages/extension --out dist/parked-prompts.vsix",
+    "verify:vsix": "node scripts/verify-vsix.mts dist/parked-prompts.vsix"
   },
   "devDependencies": {
     "@parked-prompts/core": "workspace:*",

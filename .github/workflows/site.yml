@@ -1,0 +1,72 @@
+# Checks the website on pull requests, and deploys it to GitHub Pages from main.
+#
+# Pages has one public site per repository, so there is no staging site. Instead a pull
+# request uploads the built site as a site-preview artifact, and production waits behind
+# the github-pages environment when it has required reviewers: tools/setup-repo.sh sets that up.
+name: Website
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - site/**
+      - tools/check-site.mjs
+      - packages/extension/package.json
+      - .github/workflows/site.yml
+  pull_request:
+    paths:
+      - site/**
+      - tools/check-site.mjs
+      - packages/extension/package.json
+      - .github/workflows/site.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  check:
+    name: Check the site
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+      - name: Check links, pages, and that the docs match the extension
+        run: node tools/check-site.mjs
+      - name: Upload a preview
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: site-preview
+          path: site
+          retention-days: 7
+      - name: Upload for Pages
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: site
+
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: check
+    if: github.event_name != 'pull_request' && github.ref_name == github.event.repository.default_branch
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

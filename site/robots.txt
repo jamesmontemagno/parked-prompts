@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://jamesmontemagno.github.io/parked-prompts/sitemap.xml

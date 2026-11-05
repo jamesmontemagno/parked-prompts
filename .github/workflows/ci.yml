@@ -80,7 +80,6 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @parked-prompts/core build && pnpm --filter parked-prompts build
       - name: Run the smoke suite
         run: xvfb-run -a pnpm test:vscode
         env:
@@ -100,8 +99,8 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @parked-prompts/core build
       - run: pnpm package:vsix
+      - run: pnpm verify:vsix
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: parked-prompts-vsix

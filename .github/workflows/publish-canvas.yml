@@ -1,6 +1,6 @@
 # Publishes the canvas plugin to the stable branch on every push to main. The build
 # runs with a read-only token; only a small push job, running no project code, can write.
-name: Publish marketplace
+name: Publish canvas
 
 on:
   push:
@@ -9,7 +9,7 @@ on:
       - packages/canvas/**
       - packages/core/**
       - pnpm-lock.yaml
-      - .github/workflows/publish.yml
+      - .github/workflows/publish-canvas.yml
   workflow_dispatch:
 
 permissions: {}
