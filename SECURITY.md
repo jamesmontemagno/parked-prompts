@@ -14,7 +14,10 @@ Prompts instruct AI agents, and repository prompts arrive by Git, so anyone with
 - The agent sending or arming a prompt by itself
 - Restoring sending a prompt
 - Git credentials from a remote URL being stored
+- Anything other than the approved publish workflow being able to publish a release
 
 The personal store is protected by file permissions (`0600` files in `0700` folders on macOS and Linux). It is not encrypted, and other software running as your user can read it. The canvas server only listens on `127.0.0.1`, with a per-launch token.
+
+Releases use Trusted Publishing, so no long-lived Marketplace or Open VSX token exists to steal.
 
 The secret scan when moving a prompt to a repository is a helpful check, not a guarantee. Read what you commit.

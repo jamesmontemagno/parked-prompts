@@ -42,6 +42,7 @@ These protect users, so please keep them true:
 - **Restoring never sends.** `isPartialQuery: true` and `prefillPrompt: true` are what guarantee it, and tests pin both down. All chat commands stay in `chatAdapter.ts`.
 - **The agent cannot send.** Anything that sends or arms is `expose: 'ui'` in the canvas.
 - **Repo prompts are untrusted.** They are confirmed by content hash before use, and that check runs again at the moment of sending.
+- **Publishing stores no token.** It uses Trusted Publishing, and only the publishing jobs in `publish.yml` have `id-token: write`. They run no build or tests, and `vsce` comes from the lockfile. `publishing.test.ts` runs that exact command against a stand-in Marketplace and enforces all of this.
 - **Nothing is published without a check of what is in it.** `verify-vsix.mts` holds the exact file list for the package, so anything new has to be added on purpose.
 - **Never put prompt text in the DOM as markup.** The webview builds elements with `textContent`, and its Content-Security-Policy stays strict.
 - **A path from a prompt file or a page is never trusted.** Use `normalizeRelativePath`, `resolveInside`, and `realpathInside`.

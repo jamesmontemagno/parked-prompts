@@ -5,21 +5,23 @@
 #   1. Turns on GitHub Pages, deploying from Actions
 #   2. Sets the repository's website, description, and topics
 #   3. Makes you the required approver for website and Marketplace deploys
-#   4. Asks for the Marketplace token and stores it as a secret
+#
+# Publishing uses Trusted Publishing, so there is no token to store. Its one manual step,
+# creating the policy on the Marketplace, is printed at the end.
 #
 # Options:
-#   --no-gate    Skip the approvals, so deploys run without waiting for you
-#   --no-secret  Skip the token prompt, to add it later
+#   --no-gate   Skip the approvals, so deploys run without waiting for you
+#   --open-vsx  Also publish to Open VSX, which needs its own trusted publisher
 set -euo pipefail
 
 REPO="${REPO:-jamesmontemagno/parked-prompts}"
 SITE_URL="https://jamesmontemagno.github.io/parked-prompts/"
 GATE=true
-SECRET=true
+OPEN_VSX=false
 for arg in "$@"; do
   case "$arg" in
     --no-gate) GATE=false ;;
-    --no-secret) SECRET=false ;;
+    --open-vsx) OPEN_VSX=true ;;
     *) echo "Unknown option: $arg" >&2; exit 2 ;;
   esac
 done
@@ -65,19 +67,33 @@ echo "==> Environments$([ "$GATE" = true ] && echo ', with you as the approver')
 create_environment github-pages false
 create_environment marketplace true
 
-if [ "$SECRET" = true ]; then
-  if gh secret list --repo "$REPO" --json name --jq '.[].name' | grep -qx VSCE_PAT; then
-    echo "==> VSCE_PAT is already set"
-  else
-    echo "==> Paste the Marketplace token (Azure DevOps PAT with Marketplace > Manage). See RELEASING.md."
-    gh secret set VSCE_PAT --repo "$REPO"
-  fi
+if [ "$OPEN_VSX" = true ]; then
+  echo "==> Open VSX"
+  # No reviewers: this job only runs after the Marketplace job, which you already approved.
+  GATE=false
+  create_environment open-vsx true
+  gh variable set PUBLISH_OPEN_VSX --repo "$REPO" --body true
 fi
 
 cat <<EOF
 
 Done. Next:
-  1. Merge the pull request, and approve the "github-pages" deployment in Actions.
+  1. Create the Trusted Publishing policy, if you have not yet: open
+     https://marketplace.visualstudio.com/manage, choose vs-publisher-473885, then
+     Trusted Publishing > Create, and enter:
+       Repository owner  jamesmontemagno
+       Repository        parked-prompts
+       Workflow          publish.yml
+       Environment       marketplace
+  2. Merge the pull request, and approve the "github-pages" deployment in Actions.
      The site goes live at $SITE_URL
-  2. Publish the extension: Actions > Publish > Run workflow, or create a GitHub Release.
+  3. Publish the extension: Actions > Publish > Run workflow, or create a GitHub Release
+     with a v* tag.
 EOF
+if [ "$OPEN_VSX" = true ]; then
+  cat <<EOF
+
+For Open VSX, add a trusted publisher at https://open-vsx.org/user-settings/trusted-publishers
+with this repository, the workflow publish.yml, and the environment open-vsx.
+EOF
+fi
