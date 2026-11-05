@@ -1,0 +1,14 @@
+{
+  "name": "parked-prompts",
+  "owner": {
+    "name": "jamesmontemagno"
+  },
+  "plugins": [
+    {
+      "name": "parked-prompts",
+      "description": "A Copilot canvas for parked prompts: send to this session, queue, or send when the agent goes idle.",
+      "version": "0.1.0",
+      "source": "./plugins/parked-prompts"
+    }
+  ]
+}
