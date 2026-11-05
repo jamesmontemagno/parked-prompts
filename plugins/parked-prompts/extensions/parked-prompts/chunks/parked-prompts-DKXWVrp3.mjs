@@ -15785,7 +15785,7 @@ var canvases = [{
 					id: string().optional(),
 					title: string().max(200),
 					body: string().max(1e6),
-					mode: string().max(40).default(""),
+					mode: string().max(40).optional(),
 					status: _enum(["draft", "parked"]).optional()
 				}),
 				run: async (ctx, { id, title, body, mode, status }) => {
@@ -15793,7 +15793,7 @@ var canvases = [{
 					const saved = await catalogFor(ctx.state.repo).global.update(draft.id, {
 						title,
 						body,
-						mode,
+						...mode !== void 0 && { mode },
 						...status && { status }
 					});
 					await syncFromStore(ctx);
