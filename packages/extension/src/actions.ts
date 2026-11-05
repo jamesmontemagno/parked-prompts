@@ -66,14 +66,14 @@ export class PromptActions implements vscode.Disposable {
   async #restorePrompt(prompt: ParkedPrompt, target: RestoreTarget, attachments: Awaited<ReturnType<ParkedService['attachments']>>): Promise<boolean> {
     const surface = await detectSurface(chatHost);
     if (surface === 'editor' && target === 'currentChat' && !(await this.#confirmReplacingInput())) return false;
-    const result = await restoreToChat(chatHost, { text: prompt.body, attachments, mode: prompt.mode, model: prompt.model }, target);
+    const result = await restoreToChat(chatHost, { text: prompt.body, attachments, model: prompt.model }, target);
 
     const notes: string[] = [`Restored ${describe(prompt)}. It has not been sent.`];
     if (attachments.missing.length > 0) {
       notes.push(`Missing: ${attachments.missing.map(item => `${item.name} (${missingReasonText(item.reason)})`).join('; ')}.`);
     }
     if (!result.attachedFiles) notes.push('This window cannot attach files for an extension, so they are listed by path in the text.');
-    if (result.droppedModeOrModel) notes.push('The saved mode or model is not available here, so the current one is used.');
+    if (result.droppedModel) notes.push('The saved model is not available here, so the current one is used.');
 
     const done = 'Mark as Done';
     const show = attachments.missing.length > 0 ? vscode.window.showWarningMessage : vscode.window.showInformationMessage;

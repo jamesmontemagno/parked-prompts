@@ -28,7 +28,6 @@ export const detectSurface = async (host: Pick<ChatHost, 'getCommands'>): Promis
 export interface RestoreRequest {
   text: string;
   attachments: AttachmentResolution;
-  mode?: string | undefined;
   model?: string | undefined;
 }
 
@@ -36,8 +35,8 @@ export interface RestoreResult {
   surface: ChatSurface;
   /** False when the attachments could only be listed in the text, by path. */
   attachedFiles: boolean;
-  /** True when the saved mode or model was not accepted, so the chat's current ones are used. */
-  droppedModeOrModel: boolean;
+  /** True when the saved model was not accepted, so the chat's current one is used. */
+  droppedModel: boolean;
 }
 
 function toAttachFile(host: ChatHost, item: ResolvedAttachment): unknown {
@@ -56,7 +55,6 @@ export function chatOpenOptions(host: ChatHost, request: RestoreRequest): Record
     query: request.text,
     isPartialQuery: true,
     ...(resolved.length > 0 && { attachFiles: resolved.map(item => toAttachFile(host, item)) }),
-    ...(request.mode && { mode: request.mode }),
     ...(request.model && { modelSelector: { id: request.model } }),
   };
 }
@@ -72,18 +70,18 @@ export async function restoreToChat(host: ChatHost, request: RestoreRequest, tar
   const surface = await detectSurface(host);
   if (surface === 'agents-window') {
     await host.executeCommand(AGENTS_NEW_SESSION, { prompt: withAttachmentPaths(request.text, request.attachments), prefillPrompt: true });
-    return { surface, attachedFiles: request.attachments.resolved.length === 0, droppedModeOrModel: Boolean(request.mode || request.model) };
+    return { surface, attachedFiles: request.attachments.resolved.length === 0, droppedModel: Boolean(request.model) };
   }
 
   if (target === 'newChat') await host.executeCommand(CHAT_NEW);
   const options = chatOpenOptions(host, request);
   try {
     await host.executeCommand(CHAT_OPEN, options);
-    return { surface, attachedFiles: true, droppedModeOrModel: false };
+    return { surface, attachedFiles: true, droppedModel: false };
   } catch (error) {
     // An unknown model makes the command throw. The text matters more, so retry without.
-    if (!request.mode && !request.model) throw error;
+    if (!request.model) throw error;
     await host.executeCommand(CHAT_OPEN, chatOpenOptions(host, { text: request.text, attachments: request.attachments }));
-    return { surface, attachedFiles: true, droppedModeOrModel: true };
+    return { surface, attachedFiles: true, droppedModel: true };
   }
 }

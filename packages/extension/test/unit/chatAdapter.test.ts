@@ -35,7 +35,7 @@ describe('restoring in the editor', () => {
       { command: CHAT_NEW, args: [] },
       { command: CHAT_OPEN, args: [{ query: 'Do it', isPartialQuery: true }] },
     ]);
-    expect(result).toEqual({ surface: 'editor', attachedFiles: true, droppedModeOrModel: false });
+    expect(result).toEqual({ surface: 'editor', attachedFiles: true, droppedModel: false });
   });
 
   it('stays in the current chat when asked', async () => {
@@ -58,18 +58,19 @@ describe('restoring in the editor', () => {
     });
   });
 
-  it('passes the saved mode and model', async () => {
+  it('passes the saved model without overriding the chat agent', async () => {
     const { host, calls } = fakeHost(editor);
-    await restoreToChat(host, { text: 'x', attachments: none, mode: 'agent', model: 'gpt-x' }, 'currentChat');
-    expect(calls[0]?.args[0]).toMatchObject({ mode: 'agent', modelSelector: { id: 'gpt-x' } });
+    const request = { text: 'x', attachments: none, mode: 'ask', model: 'gpt-x' };
+    await restoreToChat(host, request, 'currentChat');
+    expect(calls[0]?.args[0]).toEqual({ query: 'x', isPartialQuery: true, modelSelector: { id: 'gpt-x' } });
   });
 
   it('still restores the text when the saved model is not available', async () => {
     const { host, calls } = fakeHost(editor, (_command, options) => Boolean((options as { modelSelector?: unknown }).modelSelector));
-    const result = await restoreToChat(host, { text: 'x', attachments: none, mode: 'agent', model: 'gone' }, 'currentChat');
+    const result = await restoreToChat(host, { text: 'x', attachments: none, model: 'gone' }, 'currentChat');
     expect(calls).toHaveLength(2);
     expect(calls[1]?.args[0]).toEqual({ query: 'x', isPartialQuery: true });
-    expect(result.droppedModeOrModel).toBe(true);
+    expect(result.droppedModel).toBe(true);
   });
 
   it('reports a failure it cannot work around', async () => {
@@ -79,7 +80,7 @@ describe('restoring in the editor', () => {
 
   it('never omits isPartialQuery, which is what keeps it from sending', async () => {
     const { host, calls } = fakeHost(editor);
-    await restoreToChat(host, { text: 'x', attachments: files, mode: 'agent' }, 'newChat');
+    await restoreToChat(host, { text: 'x', attachments: files }, 'newChat');
     for (const call of calls.filter(item => item.command === CHAT_OPEN)) {
       expect(call.args[0]).toMatchObject({ isPartialQuery: true });
     }
@@ -95,7 +96,7 @@ describe('restoring in the Agents window', () => {
 
   it('always sets prefillPrompt, because without it the command sends', async () => {
     const { host, calls } = fakeHost(agentsWindow);
-    await restoreToChat(host, { text: 'x', attachments: files, mode: 'agent', model: 'm' }, 'currentChat');
+    await restoreToChat(host, { text: 'x', attachments: files, model: 'm' }, 'currentChat');
     expect(calls).toHaveLength(1);
     expect(calls[0]?.args[0]).toMatchObject({ prefillPrompt: true });
   });

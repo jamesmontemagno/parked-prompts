@@ -8,20 +8,12 @@ interface ComposerFields {
   id?: string | undefined;
   title: string;
   body: string;
-  mode: string;
   model: string;
   /** The status of the prompt being edited. New prompts are drafts until parked. */
   status: PromptView['status'];
 }
 
-const emptyFields = (): ComposerFields => ({ title: '', body: '', mode: '', model: '', status: 'draft' });
-
-const MODES = [
-  { id: '', label: 'Default mode' },
-  { id: 'agent', label: 'Agent' },
-  { id: 'ask', label: 'Ask' },
-  { id: 'edit', label: 'Edit' },
-];
+const emptyFields = (): ComposerFields => ({ title: '', body: '', model: '', status: 'draft' });
 
 const readBase64 = (file: Blob): Promise<string> =>
   new Promise((resolve, reject) => {
@@ -43,7 +35,6 @@ export class Composer {
   readonly #title = h('input', { class: 'composer-title', type: 'text', placeholder: 'Title (optional)', 'aria-label': 'Title', maxLength: 200 });
   readonly #body = h('textarea', { class: 'composer-body', placeholder: 'Write a prompt to save for later. Paste images, or attach files.', 'aria-label': 'Prompt text', rows: 4 });
   readonly #chips = h('div', { class: 'chips' });
-  readonly #mode = h('select', { 'aria-label': 'Mode' });
   readonly #model = h('select', { 'aria-label': 'Model' });
   readonly #status = h('span', { class: 'status', role: 'status' });
   readonly #park = h('button', { class: 'primary', type: 'button', onclick: () => void this.#parkNow() }, 'Park');
@@ -51,16 +42,15 @@ export class Composer {
 
   constructor() {
     const attach = h('button', { class: 'icon-button', type: 'button', title: 'Attach files', 'aria-label': 'Attach files', onclick: () => void this.#pickFiles() }, icon('attach'));
-    this.#mode.append(...MODES.map(mode => h('option', { value: mode.id }, mode.label)));
     this.element = h(
       'section',
       { class: 'composer', 'aria-label': 'New prompt' },
       this.#title,
       this.#body,
       this.#chips,
-      h('div', { class: 'composer-bar' }, attach, this.#mode, this.#model, h('span', { class: 'spacer' }), this.#status, this.#discard, this.#park),
+      h('div', { class: 'composer-bar' }, attach, this.#model, h('span', { class: 'spacer' }), this.#status, this.#discard, this.#park),
     );
-    for (const input of [this.#title, this.#body, this.#mode, this.#model]) input.addEventListener('input', () => this.#changed());
+    for (const input of [this.#title, this.#body, this.#model]) input.addEventListener('input', () => this.#changed());
     this.#body.addEventListener('paste', event => this.#onPaste(event));
     this.#body.addEventListener('input', () => this.#grow());
     this.#body.addEventListener('keydown', event => {
@@ -68,7 +58,14 @@ export class Composer {
     });
     const saved = vscodeApi.getState() as (ComposerFields & { attachments?: AttachmentView[] }) | undefined;
     if (saved?.id || saved?.body || saved?.title) {
-      this.#fields = { ...emptyFields(), ...saved };
+      this.#fields = {
+        ...emptyFields(),
+        ...(saved.id && { id: saved.id }),
+        title: saved.title ?? '',
+        body: saved.body ?? '',
+        model: saved.model ?? '',
+        status: saved.status ?? 'draft',
+      };
       this.#attachments = saved.attachments ?? [];
     }
     this.#render();
@@ -102,7 +99,7 @@ export class Composer {
 
   async load(prompt: PromptView): Promise<void> {
     await this.#flush();
-    this.#fields = { id: prompt.id, title: prompt.title, body: prompt.body, mode: prompt.mode ?? '', model: prompt.model ?? '', status: prompt.status };
+    this.#fields = { id: prompt.id, title: prompt.title, body: prompt.body, model: prompt.model ?? '', status: prompt.status };
     this.#attachments = prompt.attachments;
     this.#setStatus(prompt.status === 'draft' ? 'Draft' : 'Editing');
     this.#render();
@@ -125,7 +122,6 @@ export class Composer {
   #render(): void {
     this.#title.value = this.#fields.title;
     this.#body.value = this.#fields.body;
-    this.#mode.value = this.#fields.mode;
     this.setModels(this.#models);
     this.#renderChips();
     this.#updateButtons();
@@ -175,7 +171,7 @@ export class Composer {
   }
 
   #readInputs(): void {
-    Object.assign(this.#fields, { title: this.#title.value, body: this.#body.value, mode: this.#mode.value, model: this.#model.value });
+    Object.assign(this.#fields, { title: this.#title.value, body: this.#body.value, model: this.#model.value });
   }
 
   #changed(): void {
@@ -187,8 +183,8 @@ export class Composer {
   }
 
   #payload() {
-    const { id, title, body, mode, model } = this.#fields;
-    return { ...(id && { id }), title, body, mode, model };
+    const { id, title, body, model } = this.#fields;
+    return { ...(id && { id }), title, body, model };
   }
 
   #enqueue<T>(task: () => Promise<T>): Promise<T> {

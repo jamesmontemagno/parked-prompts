@@ -102,7 +102,7 @@ export default function App() {
 
   const fail = (failure: Error) => setError(failure.message)
   const edit = (prompt: PromptSummary) => void run('load_prompt', { store: prompt.store, id: prompt.id }).then(loaded => {
-    setEditing({ id: loaded.id, title: loaded.title, body: loaded.body, mode: loaded.mode, status: loaded.status })
+    setEditing({ id: loaded.id, title: loaded.title, body: loaded.body, status: loaded.status })
     setError('')
   }, fail)
   const startReview = (prompt: PromptSummary) => void run('preview_repo_prompt', { store: prompt.store, id: prompt.id }).then(preview => {

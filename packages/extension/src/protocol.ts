@@ -10,7 +10,6 @@ export interface PromptView {
   status: PromptStatus;
   updatedAt: string;
   repoLabel?: string;
-  mode?: string;
   model?: string;
   /** From the repo store: treat as untrusted until the user confirms it. */
   needsConfirmation: boolean;
@@ -57,11 +56,11 @@ export interface PromptRefMessage {
 export type ToHost =
   | { type: 'ready' }
   | { type: 'setScope'; scope: PromptScope }
-  | { type: 'saveDraft'; requestId: number; id?: string; title: string; body: string; mode: string; model: string }
+  | { type: 'saveDraft'; requestId: number; id?: string; title: string; body: string; model: string }
   | { type: 'park'; id: string }
   | { type: 'discardDraft'; id: string }
-  | { type: 'addImage'; requestId: number; id?: string; title: string; body: string; mode: string; model: string; mime: string; dataBase64: string; name?: string }
-  | { type: 'pickFiles'; requestId: number; id?: string; title: string; body: string; mode: string; model: string }
+  | { type: 'addImage'; requestId: number; id?: string; title: string; body: string; model: string; mime: string; dataBase64: string; name?: string }
+  | { type: 'pickFiles'; requestId: number; id?: string; title: string; body: string; model: string }
   | { type: 'removeAttachment'; id: string; path: string; startLine?: number; endLine?: number }
   | { type: 'restore'; ref: PromptRefMessage; target?: 'newChat' | 'currentChat' }
   | { type: 'edit'; ref: PromptRefMessage }

@@ -88,6 +88,8 @@ There are quicker ways from the editor:
 
 Press **Restore**. The prompt goes into a new chat with its attachments, and **is never sent**. You read it and press send yourself.
 
+Choose the agent and harness in VS Code. In the editor, restore uses a saved model when available.
+
 Restore keeps the prompt, because an extension can't see whether you sent it. Mark it done when you're finished.
 
 Set `parkedPrompts.restoreTarget` to `currentChat` to use the current chat instead. It warns before replacing text you've typed.
@@ -139,7 +141,6 @@ status: parked
 repo:
   remote: github.com/contoso/checkout-api
   path: /work/checkout-api
-mode: agent
 attachments:
   - { kind: workspace, path: src/auth.ts, range: { startLine: 1, endLine: 3 } }
   - { kind: copy, path: attachments/login-error.png, name: login-error.png, mime: image/png, size: 4120, sha256: "…" }

@@ -56,6 +56,17 @@ test('a draft deleted elsewhere keeps your text, as a new draft', async ({ openC
   await expect(text).toHaveValue('Second version, still here')
 })
 
+test('the composer omits mode selection and preserves a legacy mode when editing', async ({ openCanvas }) => {
+  const prompt = await catalog.global.create({ title: 'Legacy mode', body: 'Keep this', mode: 'ask', repo: { remote: 'github.com/o/r' } })
+  const { page } = await openCanvas({ repoPath: root })
+  const row = page.getByRole('listitem').filter({ hasText: 'Legacy mode' })
+  await expect(page.getByLabel('Mode')).toHaveCount(0)
+  await row.getByRole('button', { name: 'Edit', exact: true }).click()
+  await page.getByLabel('Prompt text').fill('Edited without choosing a mode')
+  await expect.poll(async () => (await catalog.global.get(prompt.id)).body).toBe('Edited without choosing a mode')
+  expect((await catalog.global.get(prompt.id)).mode).toBe('ask')
+})
+
 test('a failed save keeps your text instead of saying it parked', async ({ openCanvas }) => {
   const { page } = await openCanvas({ repoPath: root })
   const text = page.getByLabel('Prompt text')
@@ -166,6 +177,7 @@ test('a repository prompt must be read first, and cannot inject markup', async (
   await expect(dialog).toBeHidden()
   await row.getByRole('button', { name: 'Queue' }).click()
   await expect.poll(() => agent.messages.length).toBe(1)
+  await expect(page.getByRole('heading', { name: 'Done (1)' })).toBeVisible()
 })
 
 test('moving to the repository shows exactly what will be added', async ({ openCanvas }) => {
