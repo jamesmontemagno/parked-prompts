@@ -272,7 +272,7 @@ describe('what publish.yml is allowed to do', () => {
   });
 });
 
-describe('canvas publishing triggers', () => {
+describe('canvas publishing', () => {
   it('runs for every main push so a newer non-canvas commit cannot strand a skipped release', () => {
     const canvasWorkflow = parse(readFileSync(join(REPO, '.github/workflows/publish-canvas.yml'), 'utf8')) as {
       on: { push: { branches: string[]; paths?: string[]; 'paths-ignore'?: string[] }; workflow_dispatch: unknown };
@@ -281,5 +281,30 @@ describe('canvas publishing triggers', () => {
     expect(canvasWorkflow.on.push.paths).toBeUndefined();
     expect(canvasWorkflow.on.push['paths-ignore']).toBeUndefined();
     expect(canvasWorkflow.on).toHaveProperty('workflow_dispatch');
+  });
+
+  it('indexes the published plugin on the default branch without duplicating its bundle', () => {
+    const config = JSON.parse(readFileSync(join(REPO, 'packages/canvas/marketplace.config.json'), 'utf8')) as {
+      name: string; owner: { name: string }; repository: string; publishBranch: string;
+    };
+    const canvas = JSON.parse(readFileSync(join(REPO, 'packages/canvas/package.json'), 'utf8')) as {
+      version: string; description: string;
+    };
+    const catalog = JSON.parse(readFileSync(join(REPO, '.github/plugin/marketplace.json'), 'utf8')) as unknown;
+    expect(catalog).toEqual({
+      name: config.name,
+      owner: config.owner,
+      plugins: [{
+        name: config.name,
+        description: canvas.description,
+        version: canvas.version,
+        source: {
+          source: 'github',
+          repo: config.repository,
+          ref: config.publishBranch,
+          path: `plugins/${config.name}`,
+        },
+      }],
+    });
   });
 });
