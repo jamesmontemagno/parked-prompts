@@ -1,7 +1,7 @@
-import { a as CanvasKitError, i as loadRelease, o as errorMessage, r as CanvasHost, t as canvases } from "./chunks/parked-prompts-CKqXXS7Z.mjs";
+import { a as CanvasKitError, i as loadRelease, o as errorMessage, r as CanvasHost, t as canvases } from "./chunks/parked-prompts-CAs_R1e3.mjs";
 import { CanvasError, createCanvas, joinSession } from "@github/copilot-sdk/extension";
 import { fileURLToPath } from "node:url";
-// ../../node_modules/.pnpm/@rwoll+canvas-kit@0.3.0_@github+copilot-sdk@1.0.28_@playwright+test@1.64.1_react@19.3.1_09727ff87d125f79f53e5e0e4ea737de/node_modules/@rwoll/canvas-kit/dist/extension.js
+// ../../node_modules/.pnpm/@rwoll+canvas-kit@0.3.0_@github+copilot-sdk@1.0.28_@playwright+test@1.64.1_react@19.3.1_5bfde09d328a84ec995aa358fe2afed2/node_modules/@rwoll/canvas-kit/dist/extension.js
 var toPath = (value) => typeof value === "string" ? value : fileURLToPath(value);
 function toCanvasError(error) {
 	if (error instanceof CanvasError) return error;

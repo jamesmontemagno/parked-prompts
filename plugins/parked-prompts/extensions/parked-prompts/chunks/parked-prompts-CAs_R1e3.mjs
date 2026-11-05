@@ -8,7 +8,7 @@ import { homedir } from "node:os";
 // \0rolldown/runtime.js
 var __commonJSMin = (cb, mod) => () => (mod || (cb((mod = { exports: {} }).exports, mod, mod.exports), cb = null), mod.exports);
 var __require = /* #__PURE__ */ (() => createRequire(import.meta.url))();
-// ../../node_modules/.pnpm/@rwoll+canvas-kit@0.3.0_@github+copilot-sdk@1.0.28_@playwright+test@1.64.1_react@19.3.1_09727ff87d125f79f53e5e0e4ea737de/node_modules/@rwoll/canvas-kit/dist/errors.js
+// ../../node_modules/.pnpm/@rwoll+canvas-kit@0.3.0_@github+copilot-sdk@1.0.28_@playwright+test@1.64.1_react@19.3.1_5bfde09d328a84ec995aa358fe2afed2/node_modules/@rwoll/canvas-kit/dist/errors.js
 var STATUS_BY_CODE = {
 	invalid_input: 400,
 	forbidden: 403,
@@ -5704,7 +5704,7 @@ function superRefine(fn, params) {
 function datetime(params) {
 	return /* @__PURE__ */ _isoDateTime(ZodISODateTime, params);
 }
-// ../../node_modules/.pnpm/@rwoll+canvas-kit@0.3.0_@github+copilot-sdk@1.0.28_@playwright+test@1.64.1_react@19.3.1_09727ff87d125f79f53e5e0e4ea737de/node_modules/@rwoll/canvas-kit/dist/jobs.js
+// ../../node_modules/.pnpm/@rwoll+canvas-kit@0.3.0_@github+copilot-sdk@1.0.28_@playwright+test@1.64.1_react@19.3.1_5bfde09d328a84ec995aa358fe2afed2/node_modules/@rwoll/canvas-kit/dist/jobs.js
 var INTERVAL_PATTERN = /^(\d+(?:\.\d+)?)(s|m|h|d)$/;
 var UNITS = [
 	["d", 864e5],
@@ -5732,7 +5732,7 @@ var JOB_ACTIONS = {
 	add: "add_job",
 	remove: "remove_job"
 };
-// ../../node_modules/.pnpm/@rwoll+canvas-kit@0.3.0_@github+copilot-sdk@1.0.28_@playwright+test@1.64.1_react@19.3.1_09727ff87d125f79f53e5e0e4ea737de/node_modules/@rwoll/canvas-kit/dist/define.js
+// ../../node_modules/.pnpm/@rwoll+canvas-kit@0.3.0_@github+copilot-sdk@1.0.28_@playwright+test@1.64.1_react@19.3.1_5bfde09d328a84ec995aa358fe2afed2/node_modules/@rwoll/canvas-kit/dist/define.js
 var emptyInput = object({}).strict();
 var ID_PATTERN$1 = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 var ACTION_PATTERN = /^[a-z][a-z0-9_]*$/;
@@ -5909,7 +5909,7 @@ function defineCanvas(spec) {
 		status: (state) => spec.status?.(state)
 	};
 }
-// ../../node_modules/.pnpm/@rwoll+canvas-kit@0.3.0_@github+copilot-sdk@1.0.28_@playwright+test@1.64.1_react@19.3.1_09727ff87d125f79f53e5e0e4ea737de/node_modules/@rwoll/canvas-kit/dist/server/activity.js
+// ../../node_modules/.pnpm/@rwoll+canvas-kit@0.3.0_@github+copilot-sdk@1.0.28_@playwright+test@1.64.1_react@19.3.1_5bfde09d328a84ec995aa358fe2afed2/node_modules/@rwoll/canvas-kit/dist/server/activity.js
 var CANVAS_TOOLS = /* @__PURE__ */ new Set([
 	"invoke_canvas_action",
 	"open_canvas",
@@ -6036,7 +6036,7 @@ var AgentActivityTracker = class {
 		return false;
 	}
 };
-// ../../node_modules/.pnpm/@rwoll+canvas-kit@0.3.0_@github+copilot-sdk@1.0.28_@playwright+test@1.64.1_react@19.3.1_09727ff87d125f79f53e5e0e4ea737de/node_modules/@rwoll/canvas-kit/dist/server/release.js
+// ../../node_modules/.pnpm/@rwoll+canvas-kit@0.3.0_@github+copilot-sdk@1.0.28_@playwright+test@1.64.1_react@19.3.1_5bfde09d328a84ec995aa358fe2afed2/node_modules/@rwoll/canvas-kit/dist/server/release.js
 var stampSchema = object({
 	publishedAt: datetime(),
 	sourceCommit: string().regex(/^[0-9a-f]{40}$/)
@@ -6105,7 +6105,7 @@ function insertBefore(html, tag, snippet, fallback) {
 function injectReleaseFooter(html, release) {
 	return insertBefore(insertBefore(html, /<\/head>/, `<style>${FOOTER_STYLE}</style>`, "start"), /<\/body>/, `<div class="canvas-kit-release-spacer" aria-hidden="true"></div>${renderReleaseFooter(release)}`, "end");
 }
-// ../../node_modules/.pnpm/@rwoll+canvas-kit@0.3.0_@github+copilot-sdk@1.0.28_@playwright+test@1.64.1_react@19.3.1_09727ff87d125f79f53e5e0e4ea737de/node_modules/@rwoll/canvas-kit/dist/server/storage.js
+// ../../node_modules/.pnpm/@rwoll+canvas-kit@0.3.0_@github+copilot-sdk@1.0.28_@playwright+test@1.64.1_react@19.3.1_5bfde09d328a84ec995aa358fe2afed2/node_modules/@rwoll/canvas-kit/dist/server/storage.js
 var FORMAT = "rwoll-canvas-kit-state";
 /** `$COPILOT_HOME` when set, otherwise `~/.copilot`. */
 function copilotHome() {
@@ -6322,7 +6322,7 @@ var StateStore = class {
 		return true;
 	}
 };
-// ../../node_modules/.pnpm/@rwoll+canvas-kit@0.3.0_@github+copilot-sdk@1.0.28_@playwright+test@1.64.1_react@19.3.1_09727ff87d125f79f53e5e0e4ea737de/node_modules/@rwoll/canvas-kit/dist/server/host.js
+// ../../node_modules/.pnpm/@rwoll+canvas-kit@0.3.0_@github+copilot-sdk@1.0.28_@playwright+test@1.64.1_react@19.3.1_5bfde09d328a84ec995aa358fe2afed2/node_modules/@rwoll/canvas-kit/dist/server/host.js
 var allows = (controls, source) => controls === "both" || controls === source;
 var MAX_BODY_BYTES = 1048576;
 var HEARTBEAT_MS = 15e3;
@@ -7519,7 +7519,7 @@ var CanvasHost = class {
 		response.end(request.method === "HEAD" ? void 0 : body);
 	}
 };
-// ../../node_modules/.pnpm/@rwoll+canvas-kit@0.3.0_@github+copilot-sdk@1.0.28_@playwright+test@1.64.1_react@19.3.1_09727ff87d125f79f53e5e0e4ea737de/node_modules/@rwoll/canvas-kit/dist/server/headless.js
+// ../../node_modules/.pnpm/@rwoll+canvas-kit@0.3.0_@github+copilot-sdk@1.0.28_@playwright+test@1.64.1_react@19.3.1_5bfde09d328a84ec995aa358fe2afed2/node_modules/@rwoll/canvas-kit/dist/server/headless.js
 /**
 * Run scheduled jobs for saved documents with no chat or agent, as `canvas-kit run`
 * does. `job` selects every job (undefined), the jobs with one name (including those
