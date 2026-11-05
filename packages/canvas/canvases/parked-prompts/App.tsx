@@ -25,7 +25,7 @@ function Row({ prompt, armed, onEdit, onReview, onMove }: { prompt: PromptSummar
   const summary = prompt.excerpt.startsWith(titleText) ? prompt.excerpt.slice(titleText.length).trim() : prompt.excerpt
   const details = [state.scope === 'all' || !prompt.inCurrentRepo ? prompt.repoLabel : undefined, timeAgo(prompt.updatedAt)].filter(Boolean).join(' · ')
   return (
-    <li className={`prompt status-${prompt.status}`}>
+    <li className={prompt.status === 'done' ? 'prompt is-done' : 'prompt'}>
       <div className="prompt-head">
         <span className="prompt-title">{prompt.title}</span>
         {prompt.store === 'repo' && <span className="badge state-waiting" title="Stored in the repository. It arrived by Git, so read it before using it.">Repo</span>}
@@ -142,12 +142,12 @@ export default function App() {
       <main className="page">
         <Composer key={editing?.id ?? 'new'} editing={editing} onDoneEditing={() => setEditing(undefined)} />
         {state.armed.length > 0 && (
-          <p className="banner callout" role="status">
+          <p className="callout" role="status">
             {state.armed.length === 1 ? `"${state.armed[0]?.title}" sends` : `${state.armed.length} prompts send, one at a time,`} when the agent is next idle. This only happens while this canvas stays open.
           </p>
         )}
         {state.notices.length > 0 && (
-          <div className="banner attention" role="status">
+          <div className="attention" role="status">
             {state.notices.map(notice => <p key={notice}>{notice}</p>)}
             <button type="button" className="link" onClick={() => void run('dismiss_notice').catch(fail)}>Dismiss</button>
           </div>
