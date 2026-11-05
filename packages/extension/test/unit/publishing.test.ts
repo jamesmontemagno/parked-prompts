@@ -271,3 +271,15 @@ describe('what publish.yml is allowed to do', () => {
     expect(workflow.jobs.publish?.needs).toBe('package');
   });
 });
+
+describe('canvas publishing triggers', () => {
+  it('runs for every main push so a newer non-canvas commit cannot strand a skipped release', () => {
+    const canvasWorkflow = parse(readFileSync(join(REPO, '.github/workflows/publish-canvas.yml'), 'utf8')) as {
+      on: { push: { branches: string[]; paths?: string[]; 'paths-ignore'?: string[] }; workflow_dispatch: unknown };
+    };
+    expect(canvasWorkflow.on.push.branches).toEqual(['main']);
+    expect(canvasWorkflow.on.push.paths).toBeUndefined();
+    expect(canvasWorkflow.on.push['paths-ignore']).toBeUndefined();
+    expect(canvasWorkflow.on).toHaveProperty('workflow_dispatch');
+  });
+});

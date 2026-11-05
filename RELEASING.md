@@ -5,7 +5,7 @@ Three things ship from this repository, each with its own workflow.
 | What | Workflow | Runs when | Goes to |
 |---|---|---|---|
 | Extension | [`publish.yml`](.github/workflows/publish.yml) | You publish a GitHub Release, or run it by hand | VS Code Marketplace, the GitHub Release, and optionally Open VSX |
-| Canvas plugin | [`publish-canvas.yml`](.github/workflows/publish-canvas.yml) | Canvas changes reach `main` | The `stable` branch, which is the plugin marketplace |
+| Canvas plugin | [`publish-canvas.yml`](.github/workflows/publish-canvas.yml) | Every push to `main`, or run it by hand | The `stable` branch, which is the plugin marketplace |
 | Website | [`site.yml`](.github/workflows/site.yml) | Site changes reach `main` | GitHub Pages |
 
 ## One-time setup
@@ -98,7 +98,22 @@ pnpm verify:vsix
 
 ## Publishing the canvas
 
-Merging canvas or core changes to `main` builds the plugin in a clean worktree, runs its checks, and fast-forwards `stable`. People update with `copilot plugin update parked-prompts`.
+Every push to `main` checks whether the plugin needs publishing. The workflow builds the plugin in a clean worktree, runs its checks, and fast-forwards `stable` only when the output changes. People update with `copilot plugin update parked-prompts`.
+
+Do not add a path filter: canvas-kit skips a run if its commit is behind `main`. A newer push must start a replacement run even if it changes only documentation; otherwise `stable` can remain stale after a successful, skipped run. To catch up manually, run **Publish canvas** on `main` in Actions.
+
+The plugin marketplace is on `stable`, not `main`, and is separate from the VS Code Marketplace extension. In VS Code, use **Chat: Open Customizations** > **Browse** > **Configure Marketplaces** > **Add Marketplace** (or **Plugins** > **Browse Marketplace**), enter `jamesmontemagno/parked-prompts#stable`, then install `parked-prompts`. Adding the repository without `#stable` cannot find the generated catalog.
+
+To verify a published catalog from the CLI:
+
+```sh
+copilot plugin marketplace add jamesmontemagno/parked-prompts#stable
+copilot plugin marketplace browse parked-prompts
+copilot plugin install parked-prompts@parked-prompts
+copilot plugin list
+```
+
+The catalog should list `parked-prompts`, and the installed plugin should contain its skill and `extensions/parked-prompts/` canvas bundle. Start a fresh **Copilot** session to open the canvas; listing the plugin alone does not verify its runtime behavior.
 
 To try it without publishing, from a clone of `main`:
 

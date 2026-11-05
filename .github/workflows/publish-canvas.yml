@@ -5,11 +5,7 @@ name: Publish canvas
 on:
   push:
     branches: [main]
-    paths:
-      - packages/canvas/**
-      - packages/core/**
-      - pnpm-lock.yaml
-      - .github/workflows/publish-canvas.yml
+    # canvas-kit skips a run behind main, so every newer push needs a replacement run.
   workflow_dispatch:
 
 permissions: {}

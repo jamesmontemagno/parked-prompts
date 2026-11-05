@@ -47,7 +47,11 @@ code --install-extension packages/extension/dist/parked-prompts.vsix
 
 ### Canvas
 
-Once this repository publishes its `stable` branch:
+The canvas is a separate Copilot plugin, not part of the VSIX. In VS Code, open **Chat: Open Customizations**, then **Browse** > **Configure Marketplaces** > **Add Marketplace** (or **Plugins** > **Browse Marketplace**). Add `jamesmontemagno/parked-prompts#stable`, browse that marketplace, and install `parked-prompts`.
+
+Keep `#stable`: the default `main` branch contains source code, not the generated plugin catalog. Adding a marketplace does not install its plugin.
+
+Or use the CLI:
 
 ```sh
 copilot plugin marketplace add jamesmontemagno/parked-prompts#stable
@@ -62,7 +66,7 @@ copilot plugin marketplace add ./packages/canvas/dist/marketplace
 copilot plugin install parked-prompts@parked-prompts
 ```
 
-Then ask your agent to open the parked prompts canvas.
+Start a fresh **Copilot** session, then ask your agent to open the parked prompts canvas. Local, Claude, and Codex sessions cannot load it.
 
 Releases are covered in [RELEASING.md](RELEASING.md).
 
