@@ -10,6 +10,13 @@ updates:
       interval: weekly
     cooldown:
       default-days: 7
+    # These types describe the oldest runtime we support, so newer ones would hide
+    # APIs that users don't have. vsce refuses to package @types/vscode newer than
+    # engines.vscode. Move them by hand when a package's minimum version changes.
+    ignore:
+      - dependency-name: '@types/vscode'
+      - dependency-name: '@types/node'
+        update-types: ['version-update:semver-major']
     groups:
       dependencies:
         patterns: ['*']
