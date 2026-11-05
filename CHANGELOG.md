@@ -10,3 +10,4 @@ First version.
 - **Repository prompts:** previewed and confirmed by content hash before use, including the files they refer to.
 - **Releases:** a publishing pipeline for the Marketplace and Open VSX, using Trusted Publishing with no stored token, with approvals and a check of each package.
 - **Website:** on GitHub Pages, with docs and the security model.
+- **Install buttons:** for VS Code and VS Code Insiders, in the README and on the website.
