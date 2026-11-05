@@ -13,7 +13,7 @@
     "build": "pnpm -r build",
     "typecheck": "pnpm -r typecheck",
     "lint": "oxlint",
-    "test": "pnpm -r test",
+    "test": "pnpm -r test && node --test tools/prepare-canvas-release.test.mjs",
     "check": "pnpm build && pnpm typecheck && pnpm lint && pnpm test && pnpm check:site",
     "e2e": "pnpm --filter parked-prompts-canvas e2e",
     "test:vscode": "pnpm --filter @parked-prompts/core build && pnpm --filter parked-prompts build && pnpm --filter parked-prompts test:vscode",
