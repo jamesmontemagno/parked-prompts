@@ -5,7 +5,7 @@ Three things ship from this repository, each with its own workflow.
 | What | Workflow | Runs when | Goes to |
 |---|---|---|---|
 | Extension | [`publish.yml`](.github/workflows/publish.yml) | You publish a GitHub Release, or run it by hand | VS Code Marketplace, the GitHub Release, and optionally Open VSX |
-| Canvas plugin | [`publish-canvas.yml`](.github/workflows/publish-canvas.yml) | Every push to `main`, or run it by hand | The `stable` branch, which is the plugin marketplace |
+| Canvas plugin | [`publish-canvas.yml`](.github/workflows/publish-canvas.yml) | Every push to `main`, or run it by hand | The `stable` branch; the catalog on `main` points to it |
 | Website | [`site.yml`](.github/workflows/site.yml) | Site changes reach `main` | GitHub Pages |
 
 ## One-time setup
@@ -102,12 +102,14 @@ Every push to `main` checks whether the plugin needs publishing. The workflow bu
 
 Do not add a path filter: canvas-kit skips a run if its commit is behind `main`. A newer push must start a replacement run even if it changes only documentation; otherwise `stable` can remain stale after a successful, skipped run. To catch up manually, run **Publish canvas** on `main` in Actions.
 
-The plugin marketplace is on `stable`, not `main`, and is separate from the VS Code Marketplace extension. In VS Code, use **Chat: Open Customizations** > **Browse** > **Configure Marketplaces** > **Add Marketplace** (or **Plugins** > **Browse Marketplace**), enter `jamesmontemagno/parked-prompts#stable`, then install `parked-prompts`. Adding the repository without `#stable` cannot find the generated catalog.
+The [catalog on `main`](.github/plugin/marketplace.json) points to the built plugin on `stable`, so users can add `jamesmontemagno/parked-prompts` without choosing a branch. The generated catalog on `stable` still works for existing installs. The catalog's plugin metadata must match `packages/canvas/package.json` and `marketplace.config.json`; a publishing test checks this.
+
+The plugin marketplace is separate from the VS Code Marketplace extension. In VS Code, use **Chat: Open Customizations** > **Browse** > **Configure Marketplaces** > **Add Marketplace** (or **Plugins** > **Browse Marketplace**), enter `jamesmontemagno/parked-prompts`, then install `parked-prompts`.
 
 To verify a published catalog from the CLI:
 
 ```sh
-copilot plugin marketplace add jamesmontemagno/parked-prompts#stable
+copilot plugin marketplace add jamesmontemagno/parked-prompts
 copilot plugin marketplace browse parked-prompts
 copilot plugin install parked-prompts@parked-prompts
 copilot plugin list
