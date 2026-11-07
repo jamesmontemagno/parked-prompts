@@ -9,7 +9,9 @@ import {
   missingReasonText,
   moveToRepo,
   planMoveToRepo,
+  ParkedPromptsError,
   PromptCatalog,
+  promptRevision,
   repoStoreRoot,
   resolveAttachments,
   writePendingRestore,
@@ -61,6 +63,13 @@ export class PromptActions implements vscode.Disposable {
     const prompt = await this.#service.get(ref);
     if (!(await confirmRepoPrompt(this.#service, this.#preview, prompt))) return false;
     return this.#restorePrompt(prompt, target, await this.#service.attachments(prompt));
+  }
+
+  async copy(ref: PromptRef): Promise<boolean> {
+    const prompt = await this.#service.get(ref);
+    if (!(await confirmRepoPrompt(this.#service, this.#preview, prompt))) return false;
+    await vscode.env.clipboard.writeText(prompt.body);
+    return true;
   }
 
   async #restorePrompt(prompt: ParkedPrompt, target: RestoreTarget, attachments: Awaited<ReturnType<ParkedService['attachments']>>): Promise<boolean> {
@@ -209,6 +218,57 @@ export class PromptActions implements vscode.Disposable {
     await this.#service.catalog.storeFor(ref.store).delete(ref.id);
     this.#service.fire();
     return true;
+  }
+
+  /**
+   * Deletes the completed prompts the user could see, after one confirmation. Each is fingerprinted
+   * before asking, so a prompt reopened or edited while the dialog was open is kept.
+   */
+  async clearDone(refs: PromptRef[]): Promise<{ cleared: number; changed: number; failed: number } | undefined> {
+    const planned: { ref: PromptRef; revision: string }[] = [];
+    let changed = 0;
+    for (const ref of refs) {
+      try {
+        const prompt = await this.#service.get(ref);
+        if (prompt.status === 'done') planned.push({ ref, revision: await promptRevision(prompt) });
+        else changed += 1;
+      } catch (error) {
+        if (error instanceof ParkedPromptsError && error.code === 'not_found') changed += 1;
+        else throw error;
+      }
+    }
+    if (planned.length === 0) {
+      void vscode.window.showInformationMessage('There are no completed prompts to clear.');
+      this.#service.fire();
+      return undefined;
+    }
+    const count = planned.length === 1 ? '1 completed prompt' : `${planned.length} completed prompts`;
+    const repoCount = planned.filter(item => item.ref.store === 'repo').length;
+    const detail = [
+      'This cannot be undone. Referenced workspace files are kept.',
+      repoCount > 0 && `${repoCount === 1 ? '1 prompt is' : `${repoCount} prompts are`} stored in this repository; their files will be removed from your working copy. Git still has any committed version.`,
+    ].filter(Boolean).join('\n\n');
+    const remove = 'Delete';
+    const answer = await vscode.window.showWarningMessage(`Delete ${count} and their copied attachments?`, { modal: true, detail }, remove);
+    if (answer !== remove) return undefined;
+    let cleared = 0;
+    const failures: string[] = [];
+    for (const { ref, revision } of planned) {
+      try {
+        if (await this.#service.catalog.storeFor(ref.store).deleteDoneIfUnchanged(ref.id, revision)) cleared += 1;
+        else changed += 1;
+      } catch (error) {
+        if (error instanceof ParkedPromptsError && error.code === 'not_found') changed += 1;
+        else failures.push(errorMessage(error));
+      }
+    }
+    this.#service.fire();
+    if (failures.length > 0) {
+      void vscode.window.showErrorMessage(`Cleared ${cleared}. ${failures.length} could not be deleted: ${failures.join('; ')}`);
+    } else if (changed > 0) {
+      void vscode.window.showInformationMessage(`Cleared ${cleared}. ${changed === 1 ? '1 prompt was' : `${changed} prompts were`} kept because ${changed === 1 ? 'it' : 'they'} changed.`);
+    }
+    return { cleared, changed, failed: failures.length };
   }
 
   // --- Worktree ---

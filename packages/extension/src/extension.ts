@@ -18,7 +18,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<Parked
   const service = await ParkedService.create();
   const preview = new PromptPreview();
   const actions = new PromptActions(service, preview);
-  const view = new ParkedViewProvider(context.extensionUri, service, actions, preview);
+  const view = new ParkedViewProvider(context.extensionUri, service, actions, preview, context.globalState);
   const surface = await detectSurface(chatHost);
   await vscode.commands.executeCommand('setContext', 'parkedPrompts.isAgentsWindow', surface === 'agents-window');
 

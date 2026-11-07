@@ -4,9 +4,10 @@ import { basename, dirname, join } from 'node:path';
 import { isImageFile, mimeFromName } from './attachments.ts';
 import { ParkedPromptsError, errorMessage, isNodeError } from './errors.ts';
 import { parsePrompt, serializePrompt } from './frontmatter.ts';
-import { atomicWriteFile, copyFileWithHash, formatBytes, pathExists, rename, tooLarge, withLock } from './fsutil.ts';
-import { assertValidId, isValidId, newPromptId, normalizeRelativePath, resolveInside, safeFileName, uniqueName } from './paths.ts';
+import { atomicWriteFile, copyFileWithHash, formatBytes, pathExists, rename, sha256File, tooLarge, withLock } from './fsutil.ts';
+import { assertValidId, isValidId, newPromptId, normalizeRelativePath, realpathInside, resolveInside, safeFileName, uniqueName } from './paths.ts';
 import { deriveTitle } from './text.ts';
+import { contentHash } from './trust.ts';
 import {
   DEFAULT_LIMITS,
   type Attachment,
@@ -52,6 +53,14 @@ export interface StoreOptions {
   /** Files in a global store are private to the user; a repo store is committed, so it keeps normal permissions. */
   fileMode?: number;
   directoryMode?: number;
+}
+
+/** A revision of the prompt file and copied attachment bytes, not workspace references. */
+export async function promptRevision(prompt: ParkedPrompt): Promise<string> {
+  const copies = prompt.attachments.filter(attachment => attachment.kind === 'copy');
+  const content = await contentHash({ ...prompt, attachments: copies });
+  const file = await realpathInside(prompt.dir, resolveInside(prompt.dir, PROMPT_FILE));
+  return createHash('sha256').update(await sha256File(file)).update('\0').update(content).digest('hex');
 }
 
 /** One folder of entries: `<root>/<id>/prompt.md` plus `<root>/<id>/attachments/`. */
@@ -241,6 +250,17 @@ export class PromptStore {
     // A bad entry may be a link, and a lock file must never be written through one.
     if (info.isDirectory()) await this.withEntryLock(id, () => this.deleteWhileLocked(id));
     else await rm(dir, { force: true });
+  }
+
+  /** Deletes only the completed revision the user chose, under the same lock as edits. */
+  async deleteDoneIfUnchanged(id: string, revision: string): Promise<boolean> {
+    await this.#readEntry(id);
+    return this.withEntryLock(id, async () => {
+      const current = await this.#readEntry(id);
+      if (current.status !== 'done' || (await promptRevision(current)) !== revision) return false;
+      await this.deleteWhileLocked(id);
+      return true;
+    });
   }
 
   /** Hides the entry first, so a reader never sees half of it. The caller holds its lock. */

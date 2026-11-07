@@ -4,7 +4,22 @@ Newest first. Each pull request adds a line under **Unreleased**. After an exten
 
 ## Unreleased
 
+- **Editor extension:** clear the completed prompts currently shown using the sweep icon beside Done, with confirmation before deletion. Prompts that change while the dialog is open are kept.
+- **Editor extension:** a short tips card opens the first time, explaining the key features. Reopen it from the info button.
+- **Canvas:** a short tips card opens the first time, explaining the key features. Reopen it from the info button.
+- **Editor extension:** prompt rows show the saved model's icon and name, with its ID on hover, and search matches it.
+- **Canvas:** prompt rows show the model chosen in VS Code. Sending from the canvas still uses the session's model.
+- **Editor extension:** keep Park and Discard together in a right-aligned footer so save messages cannot move or wrap the buttons.
+- **Canvas:** keep composer actions in a right-aligned footer, with status messages below instead of wrapping alongside the buttons.
+- **Canvas:** repository filters and prompt labels show the repo name, with the full owner and name on hover.
+- **Editor extension:** repository filters and prompt labels show the repo name, with the full owner and name on hover.
+- **Editor extension:** use row icons to draft a prompt in chat, edit it, copy its text, or delete it after confirmation.
+- **Canvas:** clear the completed prompts currently shown using the sweep action, with confirmation before deletion.
+- **Canvas:** prompt actions now use compact icons for Edit, Move to repo, Done, and Delete.
+- **Canvas:** switching to edit another prompt first saves the current draft, keeping it open if saving fails.
+- **Canvas:** a Copy button copies a prompt's text so you can paste it into the chat box and edit it before sending. The canvas can't fill the chat box itself.
 - **Canvas:** publishing now increments the patch version when canvas files or the generated marketplace change, without bumping it for unrelated pushes. ([#10](https://github.com/jamesmontemagno/parked-prompts/pull/10))
+- **Maintenance:** Copilot instructions now describe the canvas and the extension, and ask for feature parity between them.
 - **Changelog:** every pull request now adds an entry here, and each release moves them under its version.
 
 ## 1.0.3 (2026-11-05)

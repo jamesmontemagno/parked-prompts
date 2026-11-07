@@ -58,6 +58,8 @@ copilot plugin install parked-prompts@parked-prompts</code><button type="button"
 
     <h2 id="park">Park a prompt</h2>
     <p>Open <strong>Parked Prompts</strong> in the activity bar and write. It saves a draft as you type, so closing the window loses nothing. Paste images, attach files, and press <strong>Park</strong>, or <kbd>Ctrl</kbd>+<kbd>Enter</kbd>.</p>
+    <p>The first time you open it, a short tips card explains the key features. Reopen it from the info button; the canvas has the same button.</p>
+    <p>Repository filters and prompt labels show the repo name. Hover to see the owner and full name when available; search still matches the full label.</p>
     <figure class="shot shot-narrow"><img src="../assets/shots/composer.webp" width="608" height="680" loading="lazy" alt="The composer in the sidebar, with typed text and a pasted image attached."><figcaption class="real">The composer, with a pasted image.</figcaption></figure>
     <p>There are quicker ways from the editor:</p>
     <div class="table-wrap"><table>
@@ -70,8 +72,8 @@ copilot plugin install parked-prompts@parked-prompts</code><button type="button"
     </table></div>
 
     <h2 id="restore">Restore it</h2>
-    <p>Press <strong>Restore</strong>. The prompt goes into a new chat with its attachments, and <strong>is never sent</strong>. You read it and press send yourself.</p>
-    <p>Choose the agent and harness in VS Code. In the editor, restore uses a saved model when available.</p>
+    <p>Press the <strong>Draft in chat</strong> icon on a prompt. It goes into a new chat with its attachments, and <strong>is never sent</strong>. You read it and press send yourself. The neighboring icons edit it, copy its text (without attachments), or delete it after confirmation.</p>
+    <p>Choose the agent and harness in VS Code. In the editor, restore uses a saved model when available. Rows show the saved model; the canvas shows it but sends with the session's model.</p>
     <p>Restoring keeps the prompt, because an extension can't see whether you sent it. Press <strong>Mark as Done</strong> on the notification, or use the <strong>…</strong> menu, when you're finished.</p>
     <p>To use the current chat instead, set <code>parkedPrompts.restoreTarget</code> to <code>currentChat</code>, or choose <strong>Restore to the current chat</strong> from the menu. It warns before replacing text you've typed.</p>
 
@@ -86,13 +88,15 @@ copilot plugin install parked-prompts@parked-prompts</code><button type="button"
         <tr><td><strong>Send</strong></td><td>Sends to this session now, steering the current turn if there is one</td></tr>
         <tr><td><strong>Queue</strong></td><td>Sends after the current turn</td></tr>
         <tr><td><strong>When idle</strong></td><td>Sends once the agent goes idle, one prompt at a time, while the canvas stays open</td></tr>
+        <tr><td><strong>Copy</strong></td><td>Copies the text so you can paste it into the chat box and edit it before sending. Attachments are not copied</td></tr>
       </tbody>
     </table></div>
     <p>Sending marks a prompt done, because here the send can be seen to work. Your agent can list and read prompts, and save new drafts, but only you can send or arm one.</p>
+    <p>In the canvas and the sidebar, the sweep icon beside <strong>Done</strong> deletes the completed prompts currently shown, after confirmation. Copied attachments are deleted too; referenced workspace files are kept. Repository-stored prompts are removed from the working tree.</p>
 
     <h2 id="share">Share with your team</h2>
     <p><strong>Move to repository…</strong> puts a prompt in <code>.github/parked-prompts/</code> for you to commit. First it lists exactly which files will be added, and warns about screenshots and anything that looks like a secret. It removes your local path, and never commits for you.</p>
-    <p>Teammates who pull it see <strong>Review</strong> instead of <strong>Restore</strong>, and read it before they can use it. See <a href="../security/">Security</a>.</p>
+    <p>Teammates who pull it see the <strong>Repo</strong> badge and read the prompt before they can copy or use it. See <a href="../security/">Security</a>.</p>
     <p class="callout">The secret check is a helpful net, not a guarantee. Read what you commit.</p>
 
     <h2 id="store">Where prompts live</h2>

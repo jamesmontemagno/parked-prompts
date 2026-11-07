@@ -28,7 +28,7 @@ docs                Phase 0 results.
 | Command | What it runs | Notes |
 |---|---|---|
 | `pnpm check` | Build, typecheck, lint, all unit tests, and the website check | Run this before a pull request |
-| `pnpm e2e` | Canvas browser tests in light, dark, and high contrast | Needs a build first |
+| `pnpm e2e` | Canvas and VS Code sidebar browser tests in light, dark, and high contrast | Needs a canvas build first |
 | `pnpm test:vscode` | Smoke tests inside real VS Code | Downloads Insiders, or set `VSCODE_EXECUTABLE`. Use `xvfb-run -a` on Linux |
 
 To work on the website, run `pnpm preview:site`. It serves `site/` under `/parked-prompts/`, the same path as GitHub Pages.

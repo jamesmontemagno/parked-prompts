@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ClipboardEvent, type ReactNode } from 'react'
+import { useEffect, useImperativeHandle, useRef, useState, type ClipboardEvent, type ReactNode, type Ref } from 'react'
 import { CanvasActionError, createCanvasHooks, getCanvasClient } from '@rwoll/canvas-kit/react'
 import { BookmarkIcon, CloseIcon, FileIcon, PaperclipIcon } from '../../ui'
 import type canvas from './canvas.ts'
@@ -28,7 +28,7 @@ function timeAgo(iso: string): string {
 
 const imageUrl = (fileId: string) => getCanvasClient<typeof canvas>().fileUrl(fileId)
 
-function Attachments({ prompt, onRemove }: { prompt: PromptSummary; onRemove?: (path: string, startLine?: number, endLine?: number) => void }) {
+function Attachments({ prompt, onRemove, disabled = false }: { prompt: PromptSummary; onRemove?: (path: string, startLine?: number, endLine?: number) => void; disabled?: boolean }) {
   if (prompt.attachments.length === 0) return null
   return (
     <ul className="attachments" aria-label="Attachments">
@@ -39,7 +39,7 @@ function Attachments({ prompt, onRemove }: { prompt: PromptSummary; onRemove?: (
           {item.missing === 'no-workspace' && <span className="muted"> (other workspace)</span>}
           {item.missing && item.missing !== 'no-workspace' && <span> ({item.missing === 'blocked' ? 'blocked' : 'missing'})</span>}
           {onRemove && (
-            <button type="button" className="attachment-remove" aria-label={`Remove ${item.label}`} title="Remove" onClick={() => onRemove(item.path, item.startLine, item.endLine)}><CloseIcon /></button>
+            <button type="button" className="attachment-remove" aria-label={`Remove ${item.label}`} title="Remove" disabled={disabled} onClick={() => onRemove(item.path, item.startLine, item.endLine)}><CloseIcon /></button>
           )}
         </li>
       ))}
@@ -54,16 +54,22 @@ interface Draft {
   status: 'draft' | 'parked' | 'done'
 }
 
+interface ComposerHandle {
+  prepareForEdit: () => Promise<boolean>
+}
+
 const emptyDraft = (): Draft => ({ title: '', body: '', status: 'draft' })
 
-function Composer({ editing, onDoneEditing }: { editing: Draft | undefined; onDoneEditing: () => void }) {
+function Composer({ editing, onDoneEditing, busy, ref }: { editing: Draft | undefined; onDoneEditing: () => void; busy: boolean; ref: Ref<ComposerHandle> }) {
   const { state, run } = useCanvas()
   const [draft, setDraft] = useState<Draft>(() => editing ?? emptyDraft())
   const [note, setNote] = useState('')
   const [reference, setReference] = useState('')
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const queue = useRef<Promise<unknown>>(Promise.resolve())
+  const failures = useRef(0)
   const latest = useRef(draft)
+  const dirty = useRef(false)
 
   // Goes up when the composer moves on, so a late reply cannot land on the next prompt.
   const generation = useRef(0)
@@ -71,6 +77,7 @@ function Composer({ editing, onDoneEditing }: { editing: Draft | undefined; onDo
   // One at a time, so a slow first save cannot create two drafts.
   const enqueue = <T,>(task: () => Promise<T>): Promise<T | undefined> => {
     const step = queue.current.then(task).catch((error: Error) => {
+      failures.current += 1
       setNote(error.message)
       return undefined
     })
@@ -83,7 +90,10 @@ function Composer({ editing, onDoneEditing }: { editing: Draft | undefined; onDo
     enqueue(async () => {
       const started = generation.current
       const { id, title, body } = latest.current
-      if (!id && !title.trim() && !body.trim()) return true
+      if (!id && !title.trim() && !body.trim()) {
+        dirty.current = false
+        return true
+      }
       const fields = { title, body }
       let saved
       try {
@@ -96,14 +106,28 @@ function Composer({ editing, onDoneEditing }: { editing: Draft | undefined; onDo
       }
       if (generation.current === started) {
         latest.current = { ...latest.current, id: saved.id }
+        if (latest.current.title === title && latest.current.body === body) dirty.current = false
         setDraft(latest.current)
         setNote(latest.current.status === 'draft' ? 'Draft saved' : 'Saved')
       }
       return true
     })
 
+  useImperativeHandle(ref, () => ({
+    prepareForEdit: async () => {
+      clearTimeout(timer.current)
+      const previousFailures = failures.current
+      await queue.current
+      if (failures.current !== previousFailures) return false
+      return !dirty.current || (await saveNow()) === true
+    },
+  }))
+
+  useEffect(() => () => clearTimeout(timer.current), [])
+
   const change = (patch: Partial<Draft>) => {
     const next = { ...latest.current, ...patch }
+    dirty.current = true
     latest.current = next
     setDraft(next)
     clearTimeout(timer.current)
@@ -113,6 +137,7 @@ function Composer({ editing, onDoneEditing }: { editing: Draft | undefined; onDo
   const reset = (message = '') => {
     clearTimeout(timer.current)
     generation.current += 1
+    dirty.current = false
     latest.current = emptyDraft()
     setDraft(latest.current)
     setNote(message)
@@ -174,28 +199,28 @@ function Composer({ editing, onDoneEditing }: { editing: Draft | undefined; onDo
   const current = state.prompts.find(prompt => prompt.id === draft.id && prompt.store === 'global')
   const hasContent = draft.body.trim().length > 0 || (current?.attachments.length ?? 0) > 0
   return (
-    <section className="block composer" aria-label="New prompt">
-      <input type="text" className="composer-title" aria-label="Title" placeholder="Title (optional)" maxLength={200} value={draft.title} onChange={event => change({ title: event.target.value })} />
-      <textarea className="composer-body" aria-label="Prompt text" placeholder="Write a prompt to save for later. Paste images, or attach files." rows={3} value={draft.body} onPaste={onPaste} onChange={event => change({ body: event.target.value })} />
-      {current && <Attachments prompt={current} onRemove={(path, startLine, endLine) => void enqueue(() => run('remove_attachment', { id: current.id, path, ...(startLine && endLine && { startLine, endLine }) }))} />}
+    <section className="block composer" aria-label="New prompt" aria-busy={busy}>
+      <input type="text" className="composer-title" aria-label="Title" placeholder="Title (optional)" maxLength={200} disabled={busy} value={draft.title} onChange={event => change({ title: event.target.value })} />
+      <textarea className="composer-body" aria-label="Prompt text" placeholder="Write a prompt to save for later. Paste images, or attach files." rows={3} disabled={busy} value={draft.body} onPaste={onPaste} onChange={event => change({ body: event.target.value })} />
+      {current && current.attachments.length > 0 && <Attachments prompt={current} disabled={busy} onRemove={(path, startLine, endLine) => void enqueue(() => run('remove_attachment', { id: current.id, path, ...(startLine && endLine && { startLine, endLine }) }))} />}
       <div className="button-row composer-tools">
-        <label className="file-button">
+        <label className="file-button" aria-disabled={busy}>
           <PaperclipIcon />
           Attach files
-          <input type="file" multiple aria-label="Attach files" onChange={event => { for (const file of event.target.files ?? []) void upload(file); event.target.value = '' }} />
+          <input type="file" multiple aria-label="Attach files" disabled={busy} onChange={event => { for (const file of event.target.files ?? []) void upload(file); event.target.value = '' }} />
         </label>
         {state.repo?.isGit && (
-          <form className="reference" onSubmit={event => { event.preventDefault(); if (reference.trim()) void addReference() }}>
-            <input type="text" aria-label="Repository file" placeholder="src/a.ts:10-20" value={reference} onChange={event => setReference(event.target.value)} />
-            <button type="submit" disabled={!reference.trim()}>Add file</button>
+          <form className="reference" onSubmit={event => { event.preventDefault(); if (!busy && reference.trim()) void addReference() }}>
+            <input type="text" aria-label="Repository file" placeholder="src/a.ts:10-20" disabled={busy} value={reference} onChange={event => setReference(event.target.value)} />
+            <button type="submit" disabled={busy || !reference.trim()}>Add file</button>
           </form>
         )}
-        <div className="composer-actions">
-          <span className="notice" role="status">{note}</span>
-          {draft.id && draft.status === 'draft' && <button type="button" onClick={() => void discard()}>Discard</button>}
-          <button type="button" className="primary" disabled={!hasContent} onClick={() => void park()}><BookmarkIcon />{draft.status === 'draft' ? 'Park' : 'Done editing'}</button>
-        </div>
       </div>
+      <div className="composer-actions">
+        {draft.id && draft.status === 'draft' && <button type="button" disabled={busy} onClick={() => void discard()}>Discard</button>}
+        <button type="button" className="primary" disabled={busy || !hasContent} onClick={() => void park()}><BookmarkIcon />{draft.status === 'draft' ? 'Park' : 'Done editing'}</button>
+      </div>
+      <span className="notice composer-status" role="status">{busy ? 'Opening prompt…' : note}</span>
     </section>
   )
 }
@@ -245,4 +270,4 @@ function ReviewDialog({ review, onClose }: { review: Review; onClose: () => void
 }
 
 export { Attachments, Composer, Dialog, ReviewDialog, timeAgo, useCanvas }
-export type { Review, Draft }
+export type { ComposerHandle, Review, Draft }

@@ -11,6 +11,7 @@ import {
   ParkedPromptsError,
   parseFileReference,
   planMoveToRepo,
+  promptRevision,
   PromptStore,
   previewUntrusted,
   repoStoreRoot,
@@ -24,11 +25,16 @@ import { attachmentsOf, catalogFor, findRepo, getPrompt, readSnapshot, type Repo
 
 const UPLOAD_ID = /^[a-f0-9]{24}$/
 const MAX_CHUNK_BASE64 = Math.ceil((UPLOAD_CHUNK_BYTES * 4) / 3) + 8
+const clearPromptRef = promptRef.extend({ revision: z.string().regex(/^[a-f0-9]{64}$/) })
+const promptKey = (ref: PromptRefInput) => `${ref.store}:${ref.id}`
 /** Let the agent settle before starting something new. */
 const IDLE_GRACE_MS = 3_000
 /** If an idle event never comes after a send, stop waiting for it eventually. */
 const STALL_MS = 10 * 60_000
 const STALE_UPLOAD_MS = 60 * 60_000
+/** In the Parked Prompts home, so dismissing the tips once covers every canvas. Dot files are not prompts. */
+const tipsMarker = () => join(defaultHome(), '.canvas-tips-seen')
+const tipsSeen = () => stat(tipsMarker()).then(() => true, () => false)
 
 interface StateContext {
   readonly state: CanvasState
@@ -46,6 +52,11 @@ async function syncFromStore(ctx: StateContext): Promise<void> {
 }
 
 const addNotice = (ctx: StateContext, notice: string) => ctx.setState(s => ({ ...s, notices: [...s.notices, notice].slice(-5) }))
+
+function assertClearScope(ctx: StateContext, scope: CanvasState['scope'], prompts: PromptRefInput[]): void {
+  if (ctx.state.scope !== scope) throw new CanvasKitError('changed', 'The prompt scope changed. Open the confirmation again.')
+  if (new Set(prompts.map(promptKey)).size !== prompts.length) throw new CanvasKitError('invalid_input', 'A prompt was selected more than once.')
+}
 
 /** A prompt that arrived by Git goes nowhere until the user has read this exact version. */
 async function assertConfirmed(repo: RepoState, prompt: ParkedPrompt): Promise<void> {
@@ -122,11 +133,11 @@ export default defineCanvas({
   state: canvasState,
   init: async ({ input }) => {
     const repo = await findRepo(input.repoPath)
-    return { repo, scope: 'repo' as const, ...(await readSnapshot(repo, 'repo')), armed: [], lastSentAt: null, notices: [] }
+    return { repo, scope: 'repo' as const, ...(await readSnapshot(repo, 'repo')), armed: [], lastSentAt: null, notices: [], showTips: !(await tipsSeen()) }
   },
   reopen: async ({ input, state }) => {
     const repo = input.repoPath ? await findRepo(input.repoPath) : state.repo
-    return { ...state, repo, ...(await readSnapshot(repo, state.scope)) }
+    return { ...state, repo, ...(await readSnapshot(repo, state.scope)), showTips: !(await tipsSeen()) }
   },
   status: state => `${state.prompts.filter(prompt => prompt.status !== 'done').length} parked`,
   files: async (ctx, id) => {
@@ -194,6 +205,15 @@ export default defineCanvas({
       expose: 'ui',
       run: ctx => { ctx.setState(s => ({ ...s, notices: [] })) },
     }),
+    dismiss_tips: action({
+      description: 'Remember that the user has seen the first-run tips.',
+      expose: 'ui',
+      run: async ctx => {
+        await mkdir(defaultHome(), { recursive: true })
+        await writeFile(tipsMarker(), '')
+        ctx.setState(s => ({ ...s, showTips: false }))
+      },
+    }),
     load_prompt: action({
       description: 'The full text of a personal prompt, for editing.',
       expose: 'ui',
@@ -239,6 +259,59 @@ export default defineCanvas({
         await catalogFor(ctx.state.repo).storeFor(ref.store).delete(ref.id)
         ctx.setState(s => ({ ...s, armed: s.armed.filter(item => !(item.id === ref.id && item.store === ref.store)) }))
         await syncFromStore(ctx)
+      },
+    }),
+    plan_clear_done: action({
+      description: 'Prepare to clear the selected completed prompts.',
+      expose: 'ui',
+      input: z.object({ scope: z.enum(['repo', 'all']), prompts: z.array(promptRef).min(1) }),
+      run: async (ctx, { scope, prompts }) => {
+        assertClearScope(ctx, scope, prompts)
+        const done = new Set(ctx.state.prompts.filter(prompt => prompt.status === 'done').map(promptKey))
+        if (prompts.some(prompt => !done.has(promptKey(prompt)))) {
+          throw new CanvasKitError('changed', 'The completed prompts changed. Refresh and try again.')
+        }
+        const planned = await Promise.all(prompts.map(async ref => {
+          const prompt = await getPrompt(ctx.state.repo, ref)
+          if (prompt.status !== 'done') throw new CanvasKitError('changed', 'A completed prompt was reopened. Refresh and try again.')
+          return { ...ref, revision: await promptRevision(prompt) }
+        }))
+        return { prompts: planned }
+      },
+    }),
+    clear_done: action({
+      description: 'Delete the selected completed prompts after confirmation.',
+      expose: 'ui',
+      input: z.object({ scope: z.enum(['repo', 'all']), prompts: z.array(clearPromptRef).min(1) }),
+      run: async (ctx, { scope, prompts }) => {
+        assertClearScope(ctx, scope, prompts)
+        const done = new Set(ctx.state.prompts.filter(prompt => prompt.status === 'done').map(promptKey))
+        const catalog = catalogFor(ctx.state.repo)
+        const cleared: PromptRefInput[] = []
+        const failures: { store: PromptRefInput['store']; id: string; message: string }[] = []
+        let changed = 0
+        for (const prompt of prompts) {
+          if (!done.has(promptKey(prompt))) {
+            changed += 1
+            continue
+          }
+          try {
+            if (await catalog.storeFor(prompt.store).deleteDoneIfUnchanged(prompt.id, prompt.revision)) cleared.push(prompt)
+            else changed += 1
+          } catch (error) {
+            if (error instanceof ParkedPromptsError && error.code === 'not_found') changed += 1
+            else failures.push({ store: prompt.store, id: prompt.id, message: errorMessage(error) })
+          }
+        }
+        const clearedKeys = new Set(cleared.map(promptKey))
+        ctx.setState(s => ({ ...s, armed: s.armed.filter(item => !clearedKeys.has(promptKey(item))) }))
+        let refreshError: string | undefined
+        try {
+          await syncFromStore(ctx)
+        } catch (error) {
+          refreshError = errorMessage(error)
+        }
+        return { cleared: cleared.length, changed, failures, ...(refreshError && { refreshError }) }
       },
     }),
 
@@ -309,6 +382,17 @@ export default defineCanvas({
         const range = startLine && endLine ? { startLine, endLine } : undefined
         await catalogFor(ctx.state.repo).global.removeAttachment(id, path, range)
         await syncFromStore(ctx)
+      },
+    }),
+
+    copy_prompt: action({
+      description: 'The text of a prompt, for the page to copy so the user can paste it into the chat box.',
+      expose: 'ui',
+      input: promptRef,
+      run: async (ctx, ref) => {
+        const prompt = await getPrompt(ctx.state.repo, ref)
+        await assertConfirmed(ctx.state.repo, prompt)
+        return { body: prompt.body }
       },
     }),
 
@@ -444,4 +528,3 @@ export default defineCanvas({
     }),
   }),
 })
-

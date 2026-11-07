@@ -46,6 +46,8 @@ export interface ViewState {
   isGitRepo: boolean;
   models: ModelOption[];
   restoreTarget: 'newChat' | 'currentChat';
+  /** True until the user dismisses the first-run tips. */
+  showTips?: boolean;
 }
 
 export interface PromptRefMessage {
@@ -55,6 +57,7 @@ export interface PromptRefMessage {
 
 export type ToHost =
   | { type: 'ready' }
+  | { type: 'dismissTips' }
   | { type: 'setScope'; scope: PromptScope }
   | { type: 'saveDraft'; requestId: number; id?: string; title: string; body: string; model: string }
   | { type: 'park'; id: string }
@@ -63,10 +66,12 @@ export type ToHost =
   | { type: 'pickFiles'; requestId: number; id?: string; title: string; body: string; model: string }
   | { type: 'removeAttachment'; id: string; path: string; startLine?: number; endLine?: number }
   | { type: 'restore'; ref: PromptRefMessage; target?: 'newChat' | 'currentChat' }
+  | { type: 'copy'; ref: PromptRefMessage }
   | { type: 'edit'; ref: PromptRefMessage }
   | { type: 'preview'; ref: PromptRefMessage }
   | { type: 'setStatus'; ref: PromptRefMessage; status: PromptStatus }
   | { type: 'delete'; ref: PromptRefMessage }
+  | { type: 'clearDone'; scope: PromptScope; refs: PromptRefMessage[] }
   | { type: 'worktree'; ref: PromptRefMessage }
   | { type: 'moveToRepo'; ref: PromptRefMessage }
   | { type: 'openFile'; ref: PromptRefMessage; path: string };

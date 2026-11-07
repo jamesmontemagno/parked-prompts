@@ -27,6 +27,7 @@ export const promptSummary = z.object({
   updatedAt: z.string(),
   repoLabel: z.string().optional(),
   mode: z.string().optional(),
+  model: z.string().optional(),
   needsConfirmation: z.boolean(),
   inCurrentRepo: z.boolean(),
   attachments: z.array(attachmentView),
@@ -45,6 +46,8 @@ export const canvasState = z.object({
   /** When this canvas last sent a prompt, so one send waits for the agent to finish before the next. */
   lastSentAt: z.number().nullable(),
   notices: z.array(z.string()),
+  /** True until the user dismisses the first-run tips. */
+  showTips: z.boolean().optional(),
 })
 export type CanvasState = z.infer<typeof canvasState>
 

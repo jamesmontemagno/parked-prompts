@@ -58,7 +58,7 @@
     <h2 id="git">Prompts from Git</h2>
     <p>Anyone with commit access can add a file to <code>.github/parked-prompts/</code>, and it would instruct your agent. So these are treated as untrusted:</p>
     <ul>
-      <li><strong>You read it first.</strong> It opens read-only, and needs a yes before it can be restored, sent, armed, or run in a worktree.</li>
+      <li><strong>You read it first.</strong> It opens read-only, and needs a yes before it can be copied, restored, sent, armed, or run in a worktree.</li>
       <li><strong>Hidden characters are shown.</strong> Zero-width, bidirectional, and tag characters can hide instructions from you while a model still reads them, so the preview marks them, as in <code>[U+200B]</code>.</li>
       <li><strong>A yes covers that exact content:</strong> the text, the attachments' bytes, and the files it refers to. If a pull changes any of them, it asks again, even if the prompt was already armed.</li>
       <li><strong>Your yes is stored outside the repository,</strong> in your home folder, so a pull can't approve itself.</li>

@@ -7,6 +7,7 @@ import type { ParkedService } from './service.ts';
 import type { PromptPreview } from './trustFlow.ts';
 
 const MAX_IMAGE_BASE64 = Math.ceil((25 * 1024 * 1024 * 4) / 3) + 8;
+const TIPS_SEEN_KEY = 'parkedPrompts.tipsSeen';
 const ALLOWED_IMAGES = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/bmp']);
 
 /** The composer and list. Its page has no access to anything except these messages. */
@@ -16,13 +17,15 @@ export class ParkedViewProvider implements vscode.WebviewViewProvider, vscode.Di
   readonly #service: ParkedService;
   readonly #actions: PromptActions;
   readonly #preview: PromptPreview;
+  readonly #memento: vscode.Memento;
   readonly #disposables: vscode.Disposable[] = [];
   #view: vscode.WebviewView | undefined;
   #models: ModelOption[] = [];
   #pending: ToWebview[] = [];
 
-  constructor(extensionUri: vscode.Uri, service: ParkedService, actions: PromptActions, preview: PromptPreview) {
+  constructor(extensionUri: vscode.Uri, service: ParkedService, actions: PromptActions, preview: PromptPreview, memento: vscode.Memento) {
     this.#extensionUri = extensionUri;
+    this.#memento = memento;
     this.#service = service;
     this.#actions = actions;
     this.#preview = preview;
@@ -154,6 +157,7 @@ export class ParkedViewProvider implements vscode.WebviewViewProvider, vscode.Di
       isGitRepo: this.#service.isGitRepo,
       models: this.#models,
       restoreTarget: vscode.workspace.getConfiguration('parkedPrompts').get('restoreTarget') === 'currentChat' ? 'currentChat' : 'newChat',
+      showTips: !this.#memento.get<boolean>(TIPS_SEEN_KEY, false),
     };
     void view.webview.postMessage({ type: 'state', state } satisfies ToWebview);
   }
@@ -202,6 +206,10 @@ export class ParkedViewProvider implements vscode.WebviewViewProvider, vscode.Di
         for (const queued of this.#pending.splice(0)) this.#post(queued);
         await this.refresh();
         return;
+      case 'dismissTips':
+        await this.#memento.update(TIPS_SEEN_KEY, true);
+        await this.refresh();
+        return;
       case 'setScope':
         this.#service.scope = message.scope === 'all' ? 'all' : 'repo';
         await this.refresh();
@@ -246,6 +254,10 @@ export class ParkedViewProvider implements vscode.WebviewViewProvider, vscode.Di
       case 'restore':
         await this.#actions.restore(ref(message.ref), message.target);
         return;
+      case 'copy':
+        this.#post({ type: 'notice', message: '' });
+        if (await this.#actions.copy(ref(message.ref))) this.#post({ type: 'notice', message: 'Copied prompt text. Attachments are not copied.' });
+        return;
       case 'edit': {
         const view = this.#view;
         if (view) this.#post({ type: 'load', prompt: await this.#toView(await this.#service.get(ref(message.ref)), view.webview) });
@@ -259,6 +271,10 @@ export class ParkedViewProvider implements vscode.WebviewViewProvider, vscode.Di
         return;
       case 'delete':
         await this.#actions.delete(ref(message.ref));
+        return;
+      case 'clearDone':
+        if (message.scope !== this.#service.scope) throw new Error('The prompt list changed. Try clearing again.');
+        await this.#actions.clearDone(message.refs.map(ref));
         return;
       case 'worktree':
         await this.#actions.runInWorktree(ref(message.ref));
