@@ -9,6 +9,57 @@ export function ClockIcon() {
   )
 }
 
+export function CheckIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+      <path d="m3 8.25 3.25 3.25L13 4.75" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+export function CopyIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+      <rect x="5.75" y="5.75" width="7.5" height="7.5" rx="1.25" fill="none" stroke="currentColor" strokeWidth="1.25" />
+      <path d="M10.25 3.75v-.5a1 1 0 0 0-1-1h-5.5a1 1 0 0 0-1 1v5.5a1 1 0 0 0 1 1h.5" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+export function EditIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+      <path d="m10.75 2.75 2.5 2.5M3 13l2.5-.5 7.25-7.25a1.77 1.77 0 0 0-2.5-2.5L3 10z" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+export function MoveToRepoIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+      <path d="M2 4.25a1 1 0 0 1 1-1h3l1.5 1.5H13a1 1 0 0 1 1 1v6.5a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1z" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinejoin="round" />
+      <path d="M5 8.75h5m-2-2 2 2-2 2" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+export function TrashIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+      <path d="M3 4.5h10M6 4.5v-2h4v2m2 0-.5 9h-7l-.5-9m3 2.5v4m2-4v4" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+export function SweepIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+      <path d="m12.75 2.25-5 5M6.5 6.75l2.75 2.75-3 3a3 3 0 0 1-2.12.88H2.5v-1.63a3 3 0 0 1 .88-2.12z" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="m4.5 11.5 1.5-1.5m-.25 2.75 1.5-1.5m4.5-.75h2m-1-1v2" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" />
+    </svg>
+  )
+}
+
 /** The extension's mark: a speech bubble holding a P. */
 export function LogoIcon() {
   return (
@@ -96,11 +147,29 @@ export function RefreshIcon() {
   )
 }
 
+export function SparkleIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+      <path d="M6.5 1.5l1.2 3.8 3.8 1.2-3.8 1.2-1.2 3.8-1.2-3.8L1.5 6.5l3.8-1.2 1.2-3.8zm6 7l.6 1.9 1.9.6-1.9.6-.6 1.9-.6-1.9-1.9-.6 1.9-.6.6-1.9z" fill="currentColor" />
+    </svg>
+  )
+}
+
 export function ChatIcon() {
   return (
     <svg className="icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
       <path d="M3 2.5h10a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1H7l-4 3v-3a1 1 0 0 1-1-1v-7a1 1 0 0 1 1-1Z" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinejoin="round" />
       <path d="M5 6h6M5 8.5h4" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+export function InfoIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+      <circle cx="8" cy="8" r="6.25" fill="none" stroke="currentColor" strokeWidth="1.25" />
+      <path d="M8 7.25v4" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" />
+      <circle cx="8" cy="5" r=".85" fill="currentColor" />
     </svg>
   )
 }

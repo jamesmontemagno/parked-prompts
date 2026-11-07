@@ -72,6 +72,8 @@ Releases are covered in [RELEASING.md](RELEASING.md).
 
 ## Using it
 
+Repository filters and prompt labels show the repo name. Hover to see the owner and full name when available; search still matches the full label.
+
 ### Park a prompt
 
 Open **Parked Prompts** in the activity bar and write. It saves a draft as you type. Paste images, attach files, and press **Park**.
@@ -86,9 +88,9 @@ There are quicker ways from the editor:
 
 ### Restore it
 
-Press **Restore**. The prompt goes into a new chat with its attachments, and **is never sent**. You read it and press send yourself.
+Press the **Draft in chat** icon on a prompt. It goes into a new chat with its attachments, and **is never sent**. You read it and press send yourself. The neighboring icons edit it, copy its text (without attachments), or delete it after confirmation.
 
-Choose the agent and harness in VS Code. In the editor, restore uses a saved model when available.
+Choose the agent and harness in VS Code. In the editor, restore uses a saved model when available. Rows show the saved model; the canvas shows it but sends with the session's model.
 
 Restore keeps the prompt, because an extension can't see whether you sent it. Mark it done when you're finished.
 
@@ -105,6 +107,11 @@ Set `parkedPrompts.restoreTarget` to `currentChat` to use the current chat inste
 | **Send** | Sends to this session now, steering the current turn if there is one |
 | **Queue** | Sends after the current turn |
 | **When idle** | Sends once the agent goes idle, one prompt at a time, while the canvas stays open |
+| **Copy** | Copies the text so you can paste it into the chat box and edit it before sending. Attachments are not copied |
+
+A short tips card opens the first time you use the canvas or the sidebar. Reopen it from the info button.
+
+In the canvas and the sidebar, the sweep icon beside **Done** deletes the completed prompts currently shown, after confirmation. Copied attachments are deleted too; referenced workspace files are kept. Repository-stored prompts are removed from the working tree.
 
 The agent can list and read prompts and save new drafts. It can't send or arm one: only you can, from the canvas.
 
@@ -116,7 +123,7 @@ The agent can list and read prompts and save new drafts. It can't send or arm on
 
 Anyone with commit access can add a prompt to `.github/parked-prompts/`, and a prompt instructs your agent. So:
 
-- **You read it before it's used.** It opens read-only, with hidden characters made visible, and needs a yes before it can be restored, sent, or armed.
+- **You read it before it's used.** It opens read-only, with hidden characters made visible, and needs a yes before it can be copied, restored, sent, or armed.
 - **A yes covers that exact content.** If a pull changes the text, an attachment, or a file it refers to, it asks again.
 - **It's never run automatically.**
 - **Untrusted workspaces hide these prompts entirely**, in the editor.

@@ -52,6 +52,7 @@ export async function summarize(prompt: ParkedPrompt, catalog: PromptCatalog, re
     updatedAt: prompt.updatedAt,
     ...(repoLabel && { repoLabel }),
     ...(prompt.mode && { mode: prompt.mode }),
+    ...(prompt.model && { model: prompt.model }),
     needsConfirmation: await catalog.trust.needsConfirmation(prompt),
     inCurrentRepo: prompt.store === 'repo' || matchRepo(prompt.repo, repoInfoOf(repo)) !== 'none',
     attachments: prompt.attachments.map((attachment, index) => {

@@ -12,9 +12,12 @@ When another agent is mid-change in your checkout, starting a second one causes 
 
 - **Park a prompt.** Write in the sidebar, paste a screenshot, and attach files. It saves as you type, and nothing goes to any model.
 - **Restore it, unsent.** It goes back into a new chat with its attachments. Choose the agent and harness in VS Code, then read it and press send yourself.
+- **Quick row actions.** Draft in chat, edit, copy the prompt text, or delete it after confirmation. Copying does not include attachments.
+- **Clear completed prompts.** The sweep icon beside **Done** deletes the completed prompts currently shown, after confirmation. Referenced workspace files are kept.
 - **Run it in a worktree.** Start now, without touching the busy checkout: a new window opens on a new branch, with the prompt waiting.
-- **Keep them per repository.** Prompts match by Git remote, so they survive re-clones and worktrees.
+- **Keep them per repository.** Prompts match by Git remote, so they survive re-clones and worktrees. Hover over the repo name to see the owner and full name when available.
 - **Share with your team.** Move a prompt to `.github/parked-prompts/` to commit it. It lists exactly what will be added, and warns about screenshots and secrets.
+- **Tips on first launch.** A short card explains the key features. Reopen it any time from the info button.
 - **Quick capture.** `Ctrl+Alt+P` (`Cmd+Alt+P` on a Mac) in the chat input parks what you typed. Park a selection or a file from their context menus.
 
 <img src="media/screenshots/sidebar.png" alt="The Parked Prompts sidebar, with a composer and a list of parked prompts" width="320">

@@ -55,3 +55,9 @@ export function remoteLabel(remote: string): string {
   const parts = remote.split('/');
   return parts.length > 2 ? parts.slice(-2).join('/') : remote;
 }
+
+/** The repository part of a label, leaving local folder names unchanged. */
+export function repoDisplayName(label: string): string {
+  const withoutTrailingSlashes = label.replace(/\/+$/, '');
+  return withoutTrailingSlashes.slice(withoutTrailingSlashes.lastIndexOf('/') + 1) || label;
+}

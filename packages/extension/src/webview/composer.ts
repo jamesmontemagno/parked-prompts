@@ -1,4 +1,4 @@
-import type { AttachmentView, ModelOption, PromptView } from '../protocol.ts';
+import type { AttachmentView, ModelOption, PromptRefMessage, PromptView } from '../protocol.ts';
 import { h, icon, post, request, vscodeApi } from './dom.ts';
 
 const SAVE_DELAY_MS = 400;
@@ -32,6 +32,7 @@ export class Composer {
   #timer: ReturnType<typeof setTimeout> | undefined;
   /** Saves run one at a time, so a slow first save cannot create two drafts. */
   #queue: Promise<unknown> = Promise.resolve();
+  #lastSave: Promise<boolean> = Promise.resolve(true);
   readonly #title = h('input', { class: 'composer-title', type: 'text', placeholder: 'Title (optional)', 'aria-label': 'Title', maxLength: 200 });
   readonly #body = h('textarea', { class: 'composer-body', placeholder: 'Write a prompt to save for later. Paste images, or attach files.', 'aria-label': 'Prompt text', rows: 4 });
   readonly #chips = h('div', { class: 'chips' });
@@ -48,7 +49,9 @@ export class Composer {
       this.#title,
       this.#body,
       this.#chips,
-      h('div', { class: 'composer-bar' }, attach, this.#model, h('span', { class: 'spacer' }), this.#status, this.#discard, this.#park),
+      h('div', { class: 'composer-bar' }, attach, this.#model),
+      h('div', { class: 'composer-actions' }, this.#discard, this.#park),
+      this.#status,
     );
     for (const input of [this.#title, this.#body, this.#model]) input.addEventListener('input', () => this.#changed());
     this.#body.addEventListener('paste', event => this.#onPaste(event));
@@ -98,7 +101,12 @@ export class Composer {
   }
 
   async load(prompt: PromptView): Promise<void> {
-    await this.#flush();
+    const previousId = this.#fields.id;
+    if (!(await this.#flush())) return;
+    if (prompt.store === 'global' && prompt.id === previousId) {
+      this.focus();
+      return;
+    }
     this.#fields = { id: prompt.id, title: prompt.title, body: prompt.body, model: prompt.model ?? '', status: prompt.status };
     this.#attachments = prompt.attachments;
     this.#setStatus(prompt.status === 'draft' ? 'Draft' : 'Editing');
@@ -107,14 +115,23 @@ export class Composer {
   }
 
   async newPrompt(): Promise<void> {
-    await this.#flush();
+    if (!(await this.#flush())) return;
     this.#reset();
     this.focus();
+  }
+
+  async preparePromptAction(ref: PromptRefMessage): Promise<boolean> {
+    if (ref.store !== 'global' || ref.id !== this.#fields.id) return true;
+    if (!(await this.#flush())) return false;
+    if (ref.id === this.#fields.id) return true;
+    this.#setStatus('The current draft changed. Please try that action again.');
+    return false;
   }
 
   #reset(): void {
     this.#fields = emptyFields();
     this.#attachments = [];
+    this.#lastSave = Promise.resolve(true);
     this.#setStatus('');
     this.#render();
   }
@@ -179,7 +196,10 @@ export class Composer {
     this.#updateButtons();
     this.#persist();
     if (this.#timer) clearTimeout(this.#timer);
-    this.#timer = setTimeout(() => void this.#save(), SAVE_DELAY_MS);
+    this.#timer = setTimeout(() => {
+      this.#timer = undefined;
+      void this.#save();
+    }, SAVE_DELAY_MS);
   }
 
   #payload() {
@@ -195,7 +215,7 @@ export class Composer {
 
   /** Resolves to whether the text is safely stored. A failure keeps it in the composer. */
   #save(): Promise<boolean> {
-    return this.#enqueue(async () => {
+    const save = this.#enqueue(async () => {
       const fields = this.#fields;
       const { id, body, title } = fields;
       if (!id && !body.trim() && !title.trim()) return true;
@@ -220,15 +240,22 @@ export class Composer {
       this.#setStatus(`Not saved: ${error.message}`);
       return false;
     });
+    this.#lastSave = save;
+    return save;
   }
 
-  async #flush(): Promise<void> {
-    if (this.#timer) {
-      clearTimeout(this.#timer);
-      this.#timer = undefined;
-      await this.#save();
+  async #flush(): Promise<boolean> {
+    for (;;) {
+      if (this.#timer) {
+        clearTimeout(this.#timer);
+        this.#timer = undefined;
+        if (!(await this.#save())) return false;
+      }
+      const queued = this.#queue;
+      await queued;
+      if (!(await this.#lastSave)) return false;
+      if (!this.#timer && this.#queue === queued) return true;
     }
-    await this.#queue;
   }
 
   async #parkNow(): Promise<void> {
@@ -236,6 +263,7 @@ export class Composer {
     if (this.#timer) clearTimeout(this.#timer);
     this.#timer = undefined;
     if (!(await this.#save())) return;
+    if (!(await this.#flush())) return;
     const { id, status } = this.#fields;
     if (!id) return;
     if (status === 'draft') post({ type: 'park', id });

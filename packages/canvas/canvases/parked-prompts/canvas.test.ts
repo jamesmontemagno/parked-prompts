@@ -1,4 +1,4 @@
-import { readFile, readdir } from 'node:fs/promises'
+import { readFile, readdir, rm } from 'node:fs/promises'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { UPLOAD_CHUNK_BYTES } from './shared.ts'
@@ -194,5 +194,81 @@ describe('moving to the repository', () => {
     const plan = await invoke<{ hash: string }>('plan_move', { store: 'global', id: prompt.id })
     await t.catalog.global.update(prompt.id, { body: 'Now with a secret' })
     await expect(invoke('move_to_repo', { id: prompt.id, hash: plan.hash })).rejects.toThrow(/changed/)
+  })
+})
+
+describe('copying', () => {
+  it('returns the full text of a personal prompt', async () => {
+    const prompt = await t.catalog.global.create({ title: 'Copy', body: 'All of it' })
+    await expect(invoke('copy_prompt', { store: 'global', id: prompt.id })).resolves.toEqual({ body: 'All of it' })
+  })
+
+  it('refuses a repository prompt nobody has read', async () => {
+    const prompt = await t.catalog.repoStore!.create({ title: 'Repo', body: 'Unread' })
+    await expect(invoke('copy_prompt', { store: 'repo', id: prompt.id })).rejects.toMatchObject({ code: 'needs_confirmation' })
+  })
+})
+
+describe('clearing completed prompts', () => {
+  const ref = (id: string, store: 'global' | 'repo' = 'global') => ({ id, store })
+  type ClearPlan = { prompts: { id: string; store: 'global' | 'repo'; revision: string }[] }
+  type ClearResult = { cleared: number; changed: number; failures: { id: string; message: string }[] }
+
+  it('clears only the selected prompts that are still done and unchanged', async () => {
+    const personal = await t.catalog.global.create({ body: 'Clear me', status: 'done', repo: { remote: 'github.com/o/r' } })
+    const repository = await t.catalog.repoStore!.create({ body: 'Reopen me', status: 'done' })
+    await t.park('Keep parked')
+    await invoke('refresh')
+    const plan = await invoke<ClearPlan>('plan_clear_done', {
+      scope: 'repo',
+      prompts: [ref(personal.id), ref(repository.id, 'repo')],
+    })
+
+    await t.catalog.repoStore!.update(repository.id, { status: 'parked' })
+    const added = await t.catalog.global.create({ body: 'Newly done', status: 'done', repo: { remote: 'github.com/o/r' } })
+    const result = await invoke<ClearResult>('clear_done', { scope: 'repo', prompts: plan.prompts })
+
+    expect(result).toMatchObject({ cleared: 1, changed: 1, failures: [] })
+    await expect(t.catalog.global.get(personal.id)).rejects.toMatchObject({ code: 'not_found' })
+    expect((await t.catalog.repoStore!.get(repository.id)).status).toBe('parked')
+    expect((await t.catalog.global.get(added.id)).status).toBe('done')
+    expect(t.state().prompts.map(prompt => prompt.title)).toContain('Newly done')
+  })
+
+  it('refuses a selection outside the current scope or after the scope changes', async () => {
+    const here = await t.catalog.global.create({ body: 'Here', status: 'done', repo: { remote: 'github.com/o/r' } })
+    const elsewhere = await t.catalog.global.create({ body: 'Elsewhere', status: 'done', repo: { remote: 'github.com/x/y' } })
+    await invoke('refresh')
+    await expect(invoke('plan_clear_done', { scope: 'repo', prompts: [ref(elsewhere.id)] })).rejects.toThrow()
+    const plan = await invoke<ClearPlan>('plan_clear_done', { scope: 'repo', prompts: [ref(here.id)] })
+    await invoke('set_scope', { scope: 'all' })
+    await expect(invoke('clear_done', { scope: 'repo', prompts: plan.prompts })).rejects.toThrow()
+    expect((await t.catalog.global.get(here.id)).status).toBe('done')
+    expect((await t.catalog.global.get(elsewhere.id)).status).toBe('done')
+  })
+
+  it('reports individual failures without hiding successfully cleared prompts', async () => {
+    const good = await t.catalog.global.create({ body: 'Good', status: 'done', repo: { remote: 'github.com/o/r' } })
+    const broken = await t.catalog.global.create({ body: 'Broken', status: 'done', repo: { remote: 'github.com/o/r' } })
+    await invoke('refresh')
+    const plan = await invoke<ClearPlan>('plan_clear_done', { scope: 'repo', prompts: [ref(good.id), ref(broken.id)] })
+    await rm(join(broken.dir, 'prompt.md'))
+
+    const result = await invoke<ClearResult>('clear_done', { scope: 'repo', prompts: plan.prompts })
+    expect(result.cleared).toBe(1)
+    expect(result.failures).toEqual([{ id: broken.id, store: 'global', message: expect.stringContaining('has no prompt.md') }])
+    await expect(t.catalog.global.get(good.id)).rejects.toMatchObject({ code: 'not_found' })
+    expect(t.state().problems.map(problem => problem.id)).toContain(broken.id)
+  })
+
+  it('does not let the agent plan or clear completed prompts', async () => {
+    const prompt = await t.catalog.global.create({ body: 'Keep', status: 'done', repo: { remote: 'github.com/o/r' } })
+    await invoke('refresh')
+    await expect(t.harness.invoke('test', 'plan_clear_done' as never, { scope: 'repo', prompts: [ref(prompt.id)] } as never, 'agent')).rejects.toThrow()
+    await expect(t.harness.invoke('test', 'clear_done' as never, {
+      scope: 'repo',
+      prompts: [{ ...ref(prompt.id), revision: 'a'.repeat(64) }],
+    } as never, 'agent')).rejects.toThrow()
+    expect((await t.catalog.global.get(prompt.id)).status).toBe('done')
   })
 })

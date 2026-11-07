@@ -13,6 +13,7 @@ import {
   PromptStore,
   readRepoInfo,
   remoteLabel,
+  repoDisplayName,
   resolveAttachments,
   safeFileName,
   slugify,
@@ -55,6 +56,18 @@ describe('normalizeRemote', () => {
 
   it('makes a short label', () => {
     expect(remoteLabel('github.com/owner/repo')).toBe('owner/repo');
+  });
+});
+
+describe('repository display name', () => {
+  it.each([
+    ['owner/repo', 'repo'],
+    ['group/subgroup/project', 'project'],
+    ['Local Folder', 'Local Folder'],
+    ['owner/Repo-Name/', 'Repo-Name'],
+    ['', ''],
+  ])('shortens %j to %j', (label, expected) => {
+    expect(repoDisplayName(label)).toBe(expected);
   });
 });
 

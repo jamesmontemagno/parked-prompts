@@ -1,7 +1,7 @@
 import { mkdir, readFile, readdir, stat, symlink, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { PROMPT_FILE, PromptStore, parsePrompt, serializePrompt, type PromptMeta } from '../src/index.ts';
+import { PROMPT_FILE, PromptStore, parsePrompt, promptRevision, serializePrompt, type PromptMeta } from '../src/index.ts';
 import { tempDir } from './helpers.ts';
 
 const meta: PromptMeta = {
@@ -184,6 +184,54 @@ describe('PromptStore', () => {
     await expect(s.get(a.id)).rejects.toMatchObject({ code: 'not_found' });
     expect((await s.get(b.id)).body).toBe('b');
     expect(await readdir(s.root)).toEqual(['bbb']);
+  });
+
+  it('clears only an unchanged completed prompt and leaves workspace files alone', async () => {
+    const root = await tempDir();
+    const s = new PromptStore(join(root, 'store'), 'global');
+    await writeFile(join(root, 'workspace.txt'), 'keep this');
+    const created = await s.create({ body: 'done', status: 'done' });
+    await s.addBytes(created.id, Buffer.from('copied'), { name: 'copy.txt' });
+    const done = await s.addWorkspaceFile(created.id, 'workspace.txt');
+
+    expect(await s.deleteDoneIfUnchanged(done.id, await promptRevision(done))).toBe(true);
+    await expect(s.get(done.id)).rejects.toMatchObject({ code: 'not_found' });
+    expect(await readFile(join(root, 'workspace.txt'), 'utf8')).toBe('keep this');
+  });
+
+  it('keeps reopened or edited prompts even if the timestamp did not change', async () => {
+    const s = new PromptStore(await tempDir(), 'global', { now: () => new Date('2026-01-01T00:00:00Z') });
+    const done = await s.create({ body: 'original', status: 'done' });
+    const revision = await promptRevision(done);
+    const edited = await s.update(done.id, { body: 'changed' });
+    expect(edited.updatedAt).toBe(done.updatedAt);
+    expect(await s.deleteDoneIfUnchanged(done.id, revision)).toBe(false);
+    const reopened = await s.update(done.id, { status: 'parked' });
+    expect(await s.deleteDoneIfUnchanged(done.id, await promptRevision(reopened))).toBe(false);
+    expect(await s.get(done.id)).toMatchObject({ body: 'changed', status: 'parked' });
+  });
+
+  it('keeps a completed prompt if a copied attachment changes after confirmation', async () => {
+    const s = await store();
+    const created = await s.create({ body: 'done', status: 'done' });
+    const done = await s.addBytes(created.id, Buffer.from('original'), { name: 'copy.txt' });
+    const revision = await promptRevision(done);
+    await writeFile(join(done.dir, 'attachments', 'copy.txt'), 'new content');
+
+    expect(await s.deleteDoneIfUnchanged(done.id, revision)).toBe(false);
+    expect(await readFile(join(done.dir, 'attachments', 'copy.txt'), 'utf8')).toBe('new content');
+  });
+
+  it('keeps a completed prompt if its file changes without changing parsed fields', async () => {
+    const s = await store();
+    const done = await s.create({ body: 'done', status: 'done' });
+    const revision = await promptRevision(done);
+    const path = join(done.dir, PROMPT_FILE);
+    const original = await readFile(path, 'utf8');
+    await writeFile(path, original.replace('title:', '# A note added after confirmation\ntitle:'));
+
+    expect(await s.deleteDoneIfUnchanged(done.id, revision)).toBe(false);
+    expect(await readFile(path, 'utf8')).toContain('# A note added after confirmation');
   });
 
   it('removes one attachment, deleting its copy', async () => {
