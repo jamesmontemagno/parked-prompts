@@ -1,4 +1,4 @@
-import { a as CanvasKitError, i as loadRelease, o as errorMessage, r as CanvasHost, t as canvases } from "./chunks/parked-prompts-DKXWVrp3.mjs";
+import { a as CanvasKitError, i as loadRelease, o as errorMessage, r as CanvasHost, t as canvases } from "./chunks/parked-prompts-BKAoycE7.mjs";
 import { CanvasError, createCanvas, joinSession } from "@github/copilot-sdk/extension";
 import { fileURLToPath } from "node:url";
 // ../../node_modules/.pnpm/@rwoll+canvas-kit@0.3.0_@github+copilot-sdk@1.0.28_@playwright+test@1.64.1_react@19.3.1_5bfde09d328a84ec995aa358fe2afed2/node_modules/@rwoll/canvas-kit/dist/extension.js
@@ -95,7 +95,7 @@ await runCanvasExtension(canvases, {
 	releaseFile: new URL("../../release.json", import.meta.url),
 	plugin: {
 		"name": "parked-prompts",
-		"version": "0.1.1"
+		"version": "0.1.2"
 	}
 });
 export {};

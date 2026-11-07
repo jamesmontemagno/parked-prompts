@@ -14752,11 +14752,107 @@ async function withLock(lockPath, task, options = {}) {
 		if (await readFile(lockPath, "utf8").catch(() => void 0) === token) await rm(lockPath, { force: true }).catch(() => void 0);
 	}
 }
+// ../core/dist/trust.js
+var TRUST_FILE = ".trust.json";
+var MAX_CONFIRMATIONS = 2e3;
+var HIDDEN_CHARACTERS = /[\u00AD\u200B-\u200F\u202A-\u202E\u2060-\u2064\u2066-\u206F\uFEFF\u{E0000}-\u{E007F}]/gu;
+var countHiddenCharacters = (text) => text.match(HIDDEN_CHARACTERS)?.length ?? 0;
+/** Shows hidden characters as visible markers such as `[U+200B]`, for previews. */
+var revealHiddenCharacters = (text) => text.replace(HIDDEN_CHARACTERS, (char) => `[U+${char.codePointAt(0).toString(16).toUpperCase().padStart(4, "0")}]`);
+/** The checkout a repo-store prompt lives in, from its own location. */
+function checkoutOf(prompt) {
+	const store = dirname(prompt.dir);
+	if (prompt.store !== "repo" || basename(store) !== "parked-prompts" || basename(dirname(store)) !== ".github") return void 0;
+	return dirname(dirname(store));
+}
+/**
+* A fingerprint of everything a prompt would deliver, read from the bytes on disk rather
+* than from what the frontmatter claims. For a repo prompt that includes the files it
+* refers to: a pull can change those as easily as the prompt, and they go to the agent too.
+*/
+async function contentHash(prompt) {
+	const hash = createHash("sha256");
+	hash.update(JSON.stringify({
+		title: prompt.title,
+		body: prompt.body,
+		mode: prompt.mode ?? "",
+		model: prompt.model ?? ""
+	}));
+	const { resolved, missing } = await resolveAttachments(prompt, checkoutOf(prompt));
+	const rangeOf = (attachment) => attachment.kind === "workspace" ? JSON.stringify(attachment.range ?? null) : "";
+	for (const item of resolved) hash.update(`\0${item.attachment.path}\0${rangeOf(item.attachment)}\0${await sha256File(item.absolutePath)}`);
+	for (const { attachment } of missing) hash.update(`\0${attachment.kind}\0${attachment.path}\0${rangeOf(attachment)}\0missing`);
+	return hash.digest("hex");
+}
+/** What to show someone before they accept a prompt that arrived by Git. */
+async function previewUntrusted(prompt) {
+	const hiddenCharacters = countHiddenCharacters(prompt.body) + countHiddenCharacters(prompt.title);
+	const warnings = [...prompt.warnings];
+	if (hiddenCharacters > 0) warnings.unshift(`This prompt contains ${hiddenCharacters} hidden character${hiddenCharacters === 1 ? "" : "s"}, which can conceal instructions. They are marked in the preview.`);
+	return {
+		hash: await contentHash(prompt),
+		text: revealHiddenCharacters(prompt.body),
+		hiddenCharacters,
+		attachments: prompt.attachments.map(attachmentLabel),
+		warnings
+	};
+}
+/**
+* Remembers which exact versions of repo prompts the user has looked at and accepted,
+* in the home folder where a Git pull cannot write. Any change to the prompt changes
+* its hash, so it needs confirming again.
+*/
+var TrustStore = class {
+	#file;
+	#home;
+	constructor(home) {
+		this.#home = home;
+		this.#file = join(home, TRUST_FILE);
+	}
+	async #read() {
+		try {
+			const parsed = JSON.parse(await readFile(this.#file, "utf8"));
+			return { confirmed: parsed.confirmed && typeof parsed.confirmed === "object" ? parsed.confirmed : {} };
+		} catch {
+			return { confirmed: {} };
+		}
+	}
+	async isConfirmed(hash) {
+		const { confirmed } = await this.#read();
+		return Object.hasOwn(confirmed, hash);
+	}
+	async needsConfirmation(prompt) {
+		return prompt.store === "repo" && !await this.isConfirmed(await contentHash(prompt));
+	}
+	async confirm(hash, id, now = /* @__PURE__ */ new Date()) {
+		const file = await this.#read();
+		file.confirmed[hash] = {
+			at: now.toISOString(),
+			id
+		};
+		const entries = Object.entries(file.confirmed).sort((a, b) => b[1].at.localeCompare(a[1].at)).slice(0, MAX_CONFIRMATIONS);
+		await mkdir(this.#home, {
+			recursive: true,
+			mode: 448
+		});
+		await atomicWriteFile(this.#file, `${JSON.stringify({ confirmed: Object.fromEntries(entries) }, null, 2)}\n`);
+	}
+};
 // ../core/dist/store.js
 var PROMPT_FILE = "prompt.md";
 var ATTACHMENTS_DIR = "attachments";
 var LOCK_FILE = ".lock";
 var STALE_TEMP_MS = 36e5;
+/** A revision of the prompt file and copied attachment bytes, not workspace references. */
+async function promptRevision(prompt) {
+	const copies = prompt.attachments.filter((attachment) => attachment.kind === "copy");
+	const content = await contentHash({
+		...prompt,
+		attachments: copies
+	});
+	const file = await realpathInside(prompt.dir, resolveInside(prompt.dir, PROMPT_FILE));
+	return createHash("sha256").update(await sha256File(file)).update("\0").update(content).digest("hex");
+}
 /** One folder of entries: `<root>/<id>/prompt.md` plus `<root>/<id>/attachments/`. */
 var PromptStore = class {
 	root;
@@ -14970,6 +15066,16 @@ var PromptStore = class {
 		if (info.isDirectory()) await this.withEntryLock(id, () => this.deleteWhileLocked(id));
 		else await rm(dir, { force: true });
 	}
+	/** Deletes only the completed revision the user chose, under the same lock as edits. */
+	async deleteDoneIfUnchanged(id, revision) {
+		await this.#readEntry(id);
+		return this.withEntryLock(id, async () => {
+			const current = await this.#readEntry(id);
+			if (current.status !== "done" || await promptRevision(current) !== revision) return false;
+			await this.deleteWhileLocked(id);
+			return true;
+		});
+	}
 	/** Hides the entry first, so a reader never sees half of it. The caller holds its lock. */
 	async deleteWhileLocked(id) {
 		const trash = join(this.root, `.trash-${id}-${randomBytes(3).toString("hex")}`);
@@ -15078,92 +15184,6 @@ var PromptStore = class {
 				force: true
 			}).catch(() => void 0);
 		}));
-	}
-};
-// ../core/dist/trust.js
-var TRUST_FILE = ".trust.json";
-var MAX_CONFIRMATIONS = 2e3;
-var HIDDEN_CHARACTERS = /[\u00AD\u200B-\u200F\u202A-\u202E\u2060-\u2064\u2066-\u206F\uFEFF\u{E0000}-\u{E007F}]/gu;
-var countHiddenCharacters = (text) => text.match(HIDDEN_CHARACTERS)?.length ?? 0;
-/** Shows hidden characters as visible markers such as `[U+200B]`, for previews. */
-var revealHiddenCharacters = (text) => text.replace(HIDDEN_CHARACTERS, (char) => `[U+${char.codePointAt(0).toString(16).toUpperCase().padStart(4, "0")}]`);
-/** The checkout a repo-store prompt lives in, from its own location. */
-function checkoutOf(prompt) {
-	const store = dirname(prompt.dir);
-	if (prompt.store !== "repo" || basename(store) !== "parked-prompts" || basename(dirname(store)) !== ".github") return void 0;
-	return dirname(dirname(store));
-}
-/**
-* A fingerprint of everything a prompt would deliver, read from the bytes on disk rather
-* than from what the frontmatter claims. For a repo prompt that includes the files it
-* refers to: a pull can change those as easily as the prompt, and they go to the agent too.
-*/
-async function contentHash(prompt) {
-	const hash = createHash("sha256");
-	hash.update(JSON.stringify({
-		title: prompt.title,
-		body: prompt.body,
-		mode: prompt.mode ?? "",
-		model: prompt.model ?? ""
-	}));
-	const { resolved, missing } = await resolveAttachments(prompt, checkoutOf(prompt));
-	const rangeOf = (attachment) => attachment.kind === "workspace" ? JSON.stringify(attachment.range ?? null) : "";
-	for (const item of resolved) hash.update(`\0${item.attachment.path}\0${rangeOf(item.attachment)}\0${await sha256File(item.absolutePath)}`);
-	for (const { attachment } of missing) hash.update(`\0${attachment.kind}\0${attachment.path}\0${rangeOf(attachment)}\0missing`);
-	return hash.digest("hex");
-}
-/** What to show someone before they accept a prompt that arrived by Git. */
-async function previewUntrusted(prompt) {
-	const hiddenCharacters = countHiddenCharacters(prompt.body) + countHiddenCharacters(prompt.title);
-	const warnings = [...prompt.warnings];
-	if (hiddenCharacters > 0) warnings.unshift(`This prompt contains ${hiddenCharacters} hidden character${hiddenCharacters === 1 ? "" : "s"}, which can conceal instructions. They are marked in the preview.`);
-	return {
-		hash: await contentHash(prompt),
-		text: revealHiddenCharacters(prompt.body),
-		hiddenCharacters,
-		attachments: prompt.attachments.map(attachmentLabel),
-		warnings
-	};
-}
-/**
-* Remembers which exact versions of repo prompts the user has looked at and accepted,
-* in the home folder where a Git pull cannot write. Any change to the prompt changes
-* its hash, so it needs confirming again.
-*/
-var TrustStore = class {
-	#file;
-	#home;
-	constructor(home) {
-		this.#home = home;
-		this.#file = join(home, TRUST_FILE);
-	}
-	async #read() {
-		try {
-			const parsed = JSON.parse(await readFile(this.#file, "utf8"));
-			return { confirmed: parsed.confirmed && typeof parsed.confirmed === "object" ? parsed.confirmed : {} };
-		} catch {
-			return { confirmed: {} };
-		}
-	}
-	async isConfirmed(hash) {
-		const { confirmed } = await this.#read();
-		return Object.hasOwn(confirmed, hash);
-	}
-	async needsConfirmation(prompt) {
-		return prompt.store === "repo" && !await this.isConfirmed(await contentHash(prompt));
-	}
-	async confirm(hash, id, now = /* @__PURE__ */ new Date()) {
-		const file = await this.#read();
-		file.confirmed[hash] = {
-			at: now.toISOString(),
-			id
-		};
-		const entries = Object.entries(file.confirmed).sort((a, b) => b[1].at.localeCompare(a[1].at)).slice(0, MAX_CONFIRMATIONS);
-		await mkdir(this.#home, {
-			recursive: true,
-			mode: 448
-		});
-		await atomicWriteFile(this.#file, `${JSON.stringify({ confirmed: Object.fromEntries(entries) }, null, 2)}\n`);
 	}
 };
 // ../core/dist/catalog.js
@@ -15440,6 +15460,7 @@ var promptSummary = object({
 	updatedAt: string(),
 	repoLabel: string().optional(),
 	mode: string().optional(),
+	model: string().optional(),
 	needsConfirmation: boolean(),
 	inCurrentRepo: boolean(),
 	attachments: array(attachmentView),
@@ -15467,7 +15488,9 @@ var canvasState = object({
 	armed: array(armedPrompt),
 	/** When this canvas last sent a prompt, so one send waits for the agent to finish before the next. */
 	lastSentAt: number().nullable(),
-	notices: array(string())
+	notices: array(string()),
+	/** True until the user dismisses the first-run tips. */
+	showTips: boolean().optional()
 });
 /** The host limits a page's request to 1 MiB, so uploads go in pieces well under that once base64-encoded. */
 var UPLOAD_CHUNK_BYTES = 524288;
@@ -15517,6 +15540,7 @@ async function summarize(prompt, catalog, repo) {
 		updatedAt: prompt.updatedAt,
 		...repoLabel && { repoLabel },
 		...prompt.mode && { mode: prompt.mode },
+		...prompt.model && { model: prompt.model },
 		needsConfirmation: await catalog.trust.needsConfirmation(prompt),
 		inCurrentRepo: prompt.store === "repo" || matchRepo(prompt.repo, repoInfoOf(repo)) !== "none",
 		attachments: prompt.attachments.map((attachment, index) => {
@@ -15553,11 +15577,16 @@ var getPrompt = (repo, ref) => catalogFor(repo).get(ref);
 // canvases/parked-prompts/canvas.ts
 var UPLOAD_ID = /^[a-f0-9]{24}$/;
 var MAX_CHUNK_BASE64 = Math.ceil(UPLOAD_CHUNK_BYTES * 4 / 3) + 8;
+var clearPromptRef = promptRef.extend({ revision: string().regex(/^[a-f0-9]{64}$/) });
+var promptKey = (ref) => `${ref.store}:${ref.id}`;
 /** Let the agent settle before starting something new. */
 var IDLE_GRACE_MS = 3e3;
 /** If an idle event never comes after a send, stop waiting for it eventually. */
 var STALL_MS = 6e5;
 var STALE_UPLOAD_MS = 36e5;
+/** In the Parked Prompts home, so dismissing the tips once covers every canvas. Dot files are not prompts. */
+var tipsMarker = () => join(defaultHome(), ".canvas-tips-seen");
+var tipsSeen = () => stat(tipsMarker()).then(() => true, () => false);
 async function syncFromStore(ctx) {
 	const snapshot = await readSnapshot(ctx.state.repo, ctx.state.scope);
 	if (!(JSON.stringify(snapshot.prompts) === JSON.stringify(ctx.state.prompts) && JSON.stringify(snapshot.problems) === JSON.stringify(ctx.state.problems))) ctx.setState((s) => ({
@@ -15569,6 +15598,10 @@ var addNotice = (ctx, notice) => ctx.setState((s) => ({
 	...s,
 	notices: [...s.notices, notice].slice(-5)
 }));
+function assertClearScope(ctx, scope, prompts) {
+	if (ctx.state.scope !== scope) throw new CanvasKitError("changed", "The prompt scope changed. Open the confirmation again.");
+	if (new Set(prompts.map(promptKey)).size !== prompts.length) throw new CanvasKitError("invalid_input", "A prompt was selected more than once.");
+}
 /** A prompt that arrived by Git goes nowhere until the user has read this exact version. */
 async function assertConfirmed(repo, prompt) {
 	if (await catalogFor(repo).trust.needsConfirmation(prompt)) throw new CanvasKitError("needs_confirmation", "This prompt came from the repository. Review it first.");
@@ -15648,7 +15681,8 @@ var canvases = [{
 				...await readSnapshot(repo, "repo"),
 				armed: [],
 				lastSentAt: null,
-				notices: []
+				notices: [],
+				showTips: !await tipsSeen()
 			};
 		},
 		reopen: async ({ input, state }) => {
@@ -15656,7 +15690,8 @@ var canvases = [{
 			return {
 				...state,
 				repo,
-				...await readSnapshot(repo, state.scope)
+				...await readSnapshot(repo, state.scope),
+				showTips: !await tipsSeen()
 			};
 		},
 		status: (state) => `${state.prompts.filter((prompt) => prompt.status !== "done").length} parked`,
@@ -15762,6 +15797,18 @@ var canvases = [{
 					}));
 				}
 			}),
+			dismiss_tips: action({
+				description: "Remember that the user has seen the first-run tips.",
+				expose: "ui",
+				run: async (ctx) => {
+					await mkdir(defaultHome(), { recursive: true });
+					await writeFile(tipsMarker(), "");
+					ctx.setState((s) => ({
+						...s,
+						showTips: false
+					}));
+				}
+			}),
 			load_prompt: action({
 				description: "The full text of a personal prompt, for editing.",
 				expose: "ui",
@@ -15827,6 +15874,77 @@ var canvases = [{
 						armed: s.armed.filter((item) => !(item.id === ref.id && item.store === ref.store))
 					}));
 					await syncFromStore(ctx);
+				}
+			}),
+			plan_clear_done: action({
+				description: "Prepare to clear the selected completed prompts.",
+				expose: "ui",
+				input: object({
+					scope: _enum(["repo", "all"]),
+					prompts: array(promptRef).min(1)
+				}),
+				run: async (ctx, { scope, prompts }) => {
+					assertClearScope(ctx, scope, prompts);
+					const done = new Set(ctx.state.prompts.filter((prompt) => prompt.status === "done").map(promptKey));
+					if (prompts.some((prompt) => !done.has(promptKey(prompt)))) throw new CanvasKitError("changed", "The completed prompts changed. Refresh and try again.");
+					return { prompts: await Promise.all(prompts.map(async (ref) => {
+						const prompt = await getPrompt(ctx.state.repo, ref);
+						if (prompt.status !== "done") throw new CanvasKitError("changed", "A completed prompt was reopened. Refresh and try again.");
+						return {
+							...ref,
+							revision: await promptRevision(prompt)
+						};
+					})) };
+				}
+			}),
+			clear_done: action({
+				description: "Delete the selected completed prompts after confirmation.",
+				expose: "ui",
+				input: object({
+					scope: _enum(["repo", "all"]),
+					prompts: array(clearPromptRef).min(1)
+				}),
+				run: async (ctx, { scope, prompts }) => {
+					assertClearScope(ctx, scope, prompts);
+					const done = new Set(ctx.state.prompts.filter((prompt) => prompt.status === "done").map(promptKey));
+					const catalog = catalogFor(ctx.state.repo);
+					const cleared = [];
+					const failures = [];
+					let changed = 0;
+					for (const prompt of prompts) {
+						if (!done.has(promptKey(prompt))) {
+							changed += 1;
+							continue;
+						}
+						try {
+							if (await catalog.storeFor(prompt.store).deleteDoneIfUnchanged(prompt.id, prompt.revision)) cleared.push(prompt);
+							else changed += 1;
+						} catch (error) {
+							if (error instanceof ParkedPromptsError && error.code === "not_found") changed += 1;
+							else failures.push({
+								store: prompt.store,
+								id: prompt.id,
+								message: errorMessage(error)
+							});
+						}
+					}
+					const clearedKeys = new Set(cleared.map(promptKey));
+					ctx.setState((s) => ({
+						...s,
+						armed: s.armed.filter((item) => !clearedKeys.has(promptKey(item)))
+					}));
+					let refreshError;
+					try {
+						await syncFromStore(ctx);
+					} catch (error) {
+						refreshError = errorMessage(error);
+					}
+					return {
+						cleared: cleared.length,
+						changed,
+						failures,
+						...refreshError && { refreshError }
+					};
 				}
 			}),
 			begin_upload: action({
@@ -15915,6 +16033,16 @@ var canvases = [{
 					} : void 0;
 					await catalogFor(ctx.state.repo).global.removeAttachment(id, path, range);
 					await syncFromStore(ctx);
+				}
+			}),
+			copy_prompt: action({
+				description: "The text of a prompt, for the page to copy so the user can paste it into the chat box.",
+				expose: "ui",
+				input: promptRef,
+				run: async (ctx, ref) => {
+					const prompt = await getPrompt(ctx.state.repo, ref);
+					await assertConfirmed(ctx.state.repo, prompt);
+					return { body: prompt.body };
 				}
 			}),
 			send_now: action({

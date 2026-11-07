@@ -1,6 +1,6 @@
 {
   "name": "parked-prompts",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "A Copilot canvas for parked prompts: send to this session, queue, or send when the agent goes idle.",
   "skills": "skills/",
   "extensions": "extensions/"
