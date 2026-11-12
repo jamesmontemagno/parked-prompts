@@ -23,7 +23,7 @@
     "preview:site": "node tools/preview-site.mjs"
   },
   "devDependencies": {
-    "oxlint": "^1.81.0",
+    "oxlint": "^1.91.0",
     "typescript": "^7.0.2"
   }
 }
