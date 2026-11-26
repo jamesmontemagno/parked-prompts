@@ -25,13 +25,13 @@
     "react-dom": "^19.2.8"
   },
   "devDependencies": {
-    "@github/copilot-sdk": "^1.0.25",
-    "@playwright/test": "^1.60.0",
+    "@github/copilot-sdk": "^1.0.34",
+    "@playwright/test": "^1.65.1",
     "@types/node": "^24.0.0",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.7",
     "typescript": "^7.0.2",
-    "vite": "^8.3.0",
-    "vitest": "^5.0.5"
+    "vite": "^8.3.8",
+    "vitest": "^5.1.1"
   }
 }
